@@ -1,25 +1,44 @@
 import axios from 'axios';
 
-// Lấy URL từ biến môi trường
-let rawUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+// Domain Production Backend mặc định trên Render.com
+// Tự động nhận diện khi web chạy trên Vercel/Internet
+const PRODUCTION_BACKEND_URL = 'https://tien-nha-904b-backend.onrender.com/api';
 
-// Chuẩn hóa URL: Tự động loại bỏ dấu / thừa ở cuối
-rawUrl = rawUrl.trim().replace(/\/+$/, '');
+export const getApiBaseUrl = () => {
+  // 1. Ưu tiên biến môi trường NEXT_PUBLIC_API_URL nếu có và không chứa localhost khi ở Production
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    let envUrl = process.env.NEXT_PUBLIC_API_URL.trim().replace(/\/+$/, '');
+    if (!envUrl.endsWith('/api')) envUrl = `${envUrl}/api`;
 
-// Tự động bổ sung /api nếu người dùng lỡ điền URL chỉ có domain
-if (!rawUrl.endsWith('/api')) {
-  rawUrl = `${rawUrl}/api`;
-}
+    // Nếu đang chạy trên trang Vercel thật mà biến env lỡ dính localhost, chuyển sang Production URL
+    if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && envUrl.includes('localhost')) {
+      return PRODUCTION_BACKEND_URL;
+    }
+    return envUrl;
+  }
 
-const API_BASE_URL = rawUrl;
+  // 2. Tự động chuyển sang Render URL khi chạy trên môi trường Web (Vercel / Điện thoại / Máy tính khác)
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    return PRODUCTION_BACKEND_URL;
+  }
+
+  // 3. Môi trường phát triển Localhost
+  return 'http://localhost:8000/api';
+};
 
 // Khởi tạo Axios instance
 const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: getApiBaseUrl(),
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10000, // Timeout 10 giây nếu server không phản hồi
+  timeout: 15000,
+});
+
+// Interceptor tự động chọn URL phù hợp trước mỗi request
+api.interceptors.request.use((config) => {
+  config.baseURL = getApiBaseUrl();
+  return config;
 });
 
 export const getMonthlyBilling = async (month, year) => {
