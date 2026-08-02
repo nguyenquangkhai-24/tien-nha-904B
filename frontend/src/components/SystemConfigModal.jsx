@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getMembers, addMember, updateMember, deleteMember, getSettings, updateSetting } from '../services/api';
-import { X, Users, Settings as SettingsIcon, Save, Plus, Trash2, Edit2, Loader2, DollarSign } from 'lucide-react';
+import { X, Users, Settings as SettingsIcon, Save, Plus, Trash2, Edit2, Loader2, DollarSign, KeyRound } from 'lucide-react';
 
 export default function SystemConfigModal({ onClose, onUpdated }) {
   const [activeTab, setActiveTab] = useState('members');
@@ -14,6 +14,7 @@ export default function SystemConfigModal({ onClose, onUpdated }) {
 
   // Settings state
   const [serviceFee, setServiceFee] = useState('');
+  const [adminPin, setAdminPin] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -28,6 +29,7 @@ export default function SystemConfigModal({ onClose, onUpdated }) {
       ]);
       setMembers(membersData);
       setServiceFee(settingsData.service_fee || 133000);
+      setAdminPin(settingsData.admin_pin || '');
     } catch (err) {
       console.error('Lỗi tải dữ liệu cấu hình:', err);
     } finally {
@@ -42,6 +44,20 @@ export default function SystemConfigModal({ onClose, onUpdated }) {
       if (onUpdated) onUpdated();
     } catch (err) {
       alert('Lỗi khi lưu cấu hình');
+    }
+  };
+
+  const handleSaveAdminPin = async () => {
+    if (!adminPin || adminPin.length < 4) {
+      alert('Mã PIN phải có ít nhất 4 ký tự!');
+      return;
+    }
+    try {
+      await updateSetting('admin_pin', adminPin);
+      localStorage.setItem('adminPin', adminPin); // Cập nhật local luôn
+      alert('Đã đổi Mã PIN Quản Trị thành công!');
+    } catch (err) {
+      alert('Lỗi khi đổi mã PIN');
     }
   };
 
@@ -235,6 +251,30 @@ export default function SystemConfigModal({ onClose, onUpdated }) {
                     className="px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-xl transition flex items-center gap-2"
                   >
                     <Save className="w-4 h-4" /> Lưu
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-slate-800 p-5 rounded-xl border border-slate-700">
+                <h3 className="text-slate-300 font-semibold mb-2 flex items-center gap-2">
+                  <KeyRound className="w-4 h-4 text-rose-400" /> Mã PIN Quản Trị Viên
+                </h3>
+                <p className="text-sm text-slate-400 mb-4">Mã PIN dùng để đăng nhập quyền Chủ nhà. Mặc định là 123456.</p>
+                
+                <div className="flex gap-3">
+                  <input 
+                    type="text"
+                    maxLength={10}
+                    value={adminPin}
+                    onChange={e => setAdminPin(e.target.value)}
+                    placeholder="Nhập mã PIN mới..."
+                    className="flex-1 bg-slate-950 border border-slate-600 rounded-xl px-4 py-3 text-slate-100 font-mono focus:border-rose-500 outline-none transition"
+                  />
+                  <button 
+                    onClick={handleSaveAdminPin}
+                    className="px-6 py-3 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl transition flex items-center gap-2"
+                  >
+                    <Save className="w-4 h-4" /> Đổi PIN
                   </button>
                 </div>
               </div>

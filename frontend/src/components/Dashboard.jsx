@@ -15,13 +15,16 @@ import {
   CheckCircle2,
   XCircle,
   Settings,
-  Wrench
+  Wrench,
+  Lock,
+  Unlock
 } from 'lucide-react';
 
 import MemberBillModal from './MemberBillModal';
 import MemberConfigModal from './MemberConfigModal';
 import AnalyticsChart from './AnalyticsChart';
 import SystemConfigModal from './SystemConfigModal';
+import AdminLoginModal from './AdminLoginModal';
 
 const FALLBACK_BILLING_DATA = [
   { member_id: '1', name: 'Duy', fixed_rent: 3750000, service_fee: 133000, parking_fee: 173000, utility_share: 0, extra_expense_share: 0, offset_amount: 0, total_due: 4056000 },
@@ -44,7 +47,25 @@ export default function Dashboard() {
   const [selectedMember, setSelectedMember] = useState(null);
   const [configMember, setConfigMember] = useState(null);
   const [showSystemConfig, setShowSystemConfig] = useState(false);
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [togglingStatusId, setTogglingStatusId] = useState(null);
+
+  useEffect(() => {
+    // Kiem tra da co pin chua
+    if (localStorage.getItem('adminPin')) {
+      setIsAdmin(true);
+    }
+
+    const handleAuthError = () => {
+      setShowAdminLogin(true);
+      setIsAdmin(false);
+      localStorage.removeItem('adminPin');
+    };
+    
+    window.addEventListener('auth-error', handleAuthError);
+    return () => window.removeEventListener('auth-error', handleAuthError);
+  }, []);
 
   const fetchBillingData = async () => {
     setLoading(true);
@@ -200,6 +221,27 @@ export default function Dashboard() {
           >
             <Wrench className="w-4 h-4" />
             <span className="hidden sm:inline">Hệ thống</span>
+          </button>
+          
+          {/* Admin Auth Button */}
+          <button
+            onClick={() => {
+              if (isAdmin) {
+                localStorage.removeItem('adminPin');
+                setIsAdmin(false);
+                alert('Đã đăng xuất Admin!');
+              } else {
+                setShowAdminLogin(true);
+              }
+            }}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition active:scale-95 border ${
+              isAdmin 
+                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/30' 
+                : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-600'
+            }`}
+            title={isAdmin ? "Đăng xuất" : "Đăng nhập Admin"}
+          >
+            {isAdmin ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
           </button>
         </div>
       </div>
@@ -378,6 +420,18 @@ export default function Dashboard() {
         <SystemConfigModal
           onClose={() => setShowSystemConfig(false)}
           onUpdated={fetchBillingData}
+        />
+      )}
+
+      {/* Admin Login Modal */}
+      {showAdminLogin && (
+        <AdminLoginModal
+          onClose={() => setShowAdminLogin(false)}
+          onSuccess={() => {
+            setIsAdmin(true);
+            setShowAdminLogin(false);
+            fetchBillingData(); // Thử load lại
+          }}
         />
       )}
 

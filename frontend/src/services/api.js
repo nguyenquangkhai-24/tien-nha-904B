@@ -26,11 +26,36 @@ const api = axios.create({
   timeout: 15000,
 });
 
-// Interceptor tự động chọn URL phù hợp trước mỗi request
+// Interceptor tự động chọn URL phù hợp và gắn Auth Header trước mỗi request
 api.interceptors.request.use((config) => {
   config.baseURL = getApiBaseUrl();
+  
+  if (['post', 'put', 'delete'].includes(config.method?.toLowerCase())) {
+    const pin = localStorage.getItem('adminPin');
+    if (pin) {
+      config.headers['X-Admin-Pin'] = pin;
+    }
+  }
   return config;
 });
+
+// Bắt lỗi 401 từ backend
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      // Bắn ra sự kiện để UI hiển thị Admin Login Modal
+      window.dispatchEvent(new CustomEvent('auth-error'));
+      return Promise.reject(new Error(error.response.data.detail || 'Không có quyền truy cập.'));
+    }
+    return Promise.reject(error);
+  }
+);
+
+export const verifyAdminPin = async (pin) => {
+  const response = await api.post('/settings/verify-pin', { pin });
+  return response.data;
+};
 
 export const getMonthlyBilling = async (month, year) => {
   const response = await api.get(`/billing/${month}/${year}`);
