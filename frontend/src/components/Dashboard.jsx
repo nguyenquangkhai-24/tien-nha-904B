@@ -9,8 +9,11 @@ import {
   RefreshCw, 
   AlertCircle,
   Sparkles,
-  WifiOff
+  WifiOff,
+  ReceiptText
 } from 'lucide-react';
+
+import MemberBillModal from './MemberBillModal';
 
 const FALLBACK_BILLING_DATA = [
   { member_id: '1', name: 'Duy', fixed_rent: 3750000, service_fee: 133000, parking_fee: 173000, utility_share: 0, extra_expense_share: 0, offset_amount: 0, total_due: 4056000 },
@@ -30,6 +33,7 @@ export default function Dashboard() {
   const [isOfflineFallback, setIsOfflineFallback] = useState(false);
   const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [selectedMember, setSelectedMember] = useState(null);
 
   const fetchBillingData = async () => {
     setLoading(true);
@@ -188,12 +192,13 @@ export default function Dashboard() {
                 <th className="py-4 px-4 text-right">Điện + Nước (/6)</th>
                 <th className="py-4 px-4 text-right">Phát sinh (/6)</th>
                 <th className="py-4 px-5 text-right font-bold text-emerald-400">TỔNG ĐÓNG</th>
+                <th className="py-4 px-5 text-center">Hoá Đơn</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700/50">
               {loading ? (
                 <tr>
-                  <td colSpan="7" className="py-12 text-center text-slate-400">
+                  <td colSpan="8" className="py-12 text-center text-slate-400">
                     <div className="flex justify-center items-center gap-2">
                       <RefreshCw className="w-5 h-5 animate-spin text-emerald-400" />
                       <span>Đang kết nối Backend server và tính toán...</span>
@@ -202,7 +207,7 @@ export default function Dashboard() {
                 </tr>
               ) : billingData.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="py-12 text-center text-slate-400">
+                  <td colSpan="8" className="py-12 text-center text-slate-400">
                     Chưa có dữ liệu chốt sổ cho Tháng {month}/{year}.
                   </td>
                 </tr>
@@ -236,6 +241,15 @@ export default function Dashboard() {
                     <td className="py-4 px-5 text-right font-mono font-bold text-base text-emerald-400 bg-emerald-500/5">
                       {formatVND(item.total_due)}
                     </td>
+                    <td className="py-4 px-5 text-center">
+                      <button
+                        onClick={() => setSelectedMember(item)}
+                        className="inline-flex items-center justify-center p-2 bg-slate-700/50 hover:bg-emerald-500 hover:text-white text-slate-300 rounded-xl transition-colors border border-slate-600 hover:border-emerald-500 shadow-sm"
+                        title="Xuất Hoá Đơn"
+                      >
+                        <ReceiptText className="w-5 h-5" />
+                      </button>
+                    </td>
                   </tr>
                 ))
               )}
@@ -251,12 +265,23 @@ export default function Dashboard() {
                   <td className="py-4 px-5 text-right text-lg text-emerald-400 font-mono">
                     {formatVND(grandTotal)}
                   </td>
+                  <td></td>
                 </tr>
               </tfoot>
             )}
           </table>
         </div>
       </div>
+
+      {/* Member Bill Modal */}
+      {selectedMember && (
+        <MemberBillModal
+          memberData={selectedMember}
+          month={month}
+          year={year}
+          onClose={() => setSelectedMember(null)}
+        />
+      )}
     </div>
   );
 }
