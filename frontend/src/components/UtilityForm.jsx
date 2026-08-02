@@ -61,7 +61,7 @@ export default function UtilityForm({ month, year, onUpdated }) {
   };
 
   return (
-    <div className="bg-slate-800/80 backdrop-blur-md p-6 rounded-2xl border border-slate-700/60 shadow-xl w-full">
+    <div className="bg-slate-800/80 backdrop-blur-md p-4 md:p-6 rounded-2xl border border-slate-700/60 shadow-xl w-full h-full flex flex-col">
       <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-700/60">
         <div className="flex items-center gap-3">
           <div className="p-2.5 bg-amber-500/10 rounded-xl border border-amber-500/20 text-amber-400">
@@ -105,12 +105,14 @@ export default function UtilityForm({ month, year, onUpdated }) {
             </label>
             <input
               type="number"
-              placeholder="VD: 1200000"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              placeholder="VD: 550000"
               value={electricity}
               onChange={(e) => setElectricity(e.target.value)}
               min="0"
               step="1000"
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-slate-100 text-sm placeholder-slate-500 focus:outline-none focus:border-amber-500 transition font-mono"
+              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-slate-100 text-sm placeholder-slate-500 focus:outline-none focus:border-blue-500 transition font-mono"
             />
           </div>
 
@@ -122,25 +124,24 @@ export default function UtilityForm({ month, year, onUpdated }) {
             </label>
             <input
               type="number"
-              placeholder="VD: 300000"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              placeholder="VD: 150000"
               value={water}
               onChange={(e) => setWater(e.target.value)}
               min="0"
               step="1000"
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-slate-100 text-sm placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition font-mono"
+              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-slate-100 text-sm placeholder-slate-500 focus:outline-none focus:border-sky-500 transition font-mono"
             />
           </div>
         </div>
 
         {/* Action Button */}
-        <div className="pt-2 flex items-center justify-between">
-          <span className="text-xs text-slate-400">
-            Công thức: (Tổng Điện + Tổng Nước) / 6 người
-          </span>
+        <div className="pt-2 flex justify-end">
           <button
             type="submit"
             disabled={loading}
-            className="flex items-center gap-2 px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold rounded-xl text-sm transition shadow-lg shadow-amber-500/20 active:scale-95 disabled:opacity-50"
+            className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-blue-500 hover:bg-blue-400 text-slate-950 font-semibold rounded-xl text-sm transition shadow-lg shadow-blue-500/20 active:scale-95 disabled:opacity-50"
           >
             {loading ? (
               <>

@@ -73,8 +73,8 @@ export default function ExpenseList({ month, year, refreshKey, onExpenseDeleted 
   };
 
   return (
-    <div className="bg-slate-800/80 backdrop-blur-md p-6 rounded-2xl border border-slate-700/60 shadow-xl w-full">
-      <div className="flex items-center gap-3 mb-4 pb-4 border-b border-slate-700/60">
+    <div className="bg-slate-800/80 backdrop-blur-md p-4 md:p-6 rounded-2xl border border-slate-700/60 shadow-xl w-full">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4 pb-4 border-b border-slate-700/60">
         <div className="p-2.5 bg-rose-500/10 rounded-xl border border-rose-500/20 text-rose-400">
           <List className="w-5 h-5" />
         </div>
@@ -103,17 +103,17 @@ export default function ExpenseList({ month, year, refreshKey, onExpenseDeleted 
       ) : (
         <div className="space-y-3 mt-4">
           {expenses.map((expense) => (
-            <div key={expense.id} className="flex items-center justify-between p-3.5 bg-slate-900 border border-slate-700 rounded-xl hover:border-slate-600 transition">
+            <div key={expense.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 bg-slate-900 border border-slate-700 rounded-xl hover:border-slate-600 transition gap-3">
               <div className="flex-1">
                 <div className="font-semibold text-slate-200 text-sm">{expense.item_name}</div>
-                <div className="text-xs text-slate-400 mt-1 flex items-center gap-2">
+                <div className="text-xs text-slate-400 mt-1.5 flex flex-wrap items-center gap-2">
                   <span className="bg-slate-800 px-2 py-0.5 rounded text-emerald-400 font-medium">Người mua: {getMemberName(expense.buyer_id)}</span>
-                  <span>•</span>
-                  <span className="font-mono">{formatVND(expense.amount)}</span>
+                  <span className="hidden sm:inline">•</span>
+                  <span className="font-mono bg-slate-800/50 px-2 py-0.5 rounded text-slate-300">{formatVND(expense.amount)}</span>
                 </div>
               </div>
               
-              <div className="flex items-center gap-2 ml-3">
+              <div className="flex items-center gap-2 self-end sm:self-auto">
                 {expense.bill_url && (
                   <button
                     onClick={() => setSelectedImage(expense.bill_url)}

@@ -156,8 +156,8 @@ export default function ExpenseForm({ month, year, onExpenseAdded }) {
   };
 
   return (
-    <div className="bg-slate-800/80 backdrop-blur-md p-6 rounded-2xl border border-slate-700/60 shadow-xl w-full">
-      <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-700/60">
+    <div className="bg-slate-800/80 backdrop-blur-md p-4 md:p-6 rounded-2xl border border-slate-700/60 shadow-xl w-full">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6 pb-4 border-b border-slate-700/60">
         <div className="p-2.5 bg-emerald-500/10 rounded-xl border border-emerald-500/20 text-emerald-400">
           <ShoppingCart className="w-5 h-5" />
         </div>
@@ -222,6 +222,8 @@ export default function ExpenseForm({ month, year, onExpenseAdded }) {
             </label>
             <input
               type="number"
+              inputMode="numeric"
+              pattern="[0-9]*"
               placeholder="VD: 150000"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
@@ -259,7 +261,7 @@ export default function ExpenseForm({ month, year, onExpenseAdded }) {
           <button
             type="submit"
             disabled={loading}
-            className="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold rounded-xl text-sm transition shadow-lg shadow-emerald-500/20 active:scale-95 disabled:opacity-50"
+            className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold rounded-xl text-sm transition shadow-lg shadow-emerald-500/20 active:scale-95 disabled:opacity-50"
           >
             {loading ? (
               <>

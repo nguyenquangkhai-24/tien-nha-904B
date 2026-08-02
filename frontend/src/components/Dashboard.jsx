@@ -88,9 +88,9 @@ export default function Dashboard() {
   const grandTotal = billingData.reduce((acc, curr) => acc + (curr.total_due || 0), 0);
 
   return (
-    <div className="w-full max-w-7xl mx-auto space-y-6">
+    <div className="w-full max-w-7xl mx-auto space-y-4 md:space-y-6">
       {/* Top Controller Bar */}
-      <div className="bg-slate-800/80 backdrop-blur-md p-6 rounded-2xl border border-slate-700/60 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-slate-800/80 backdrop-blur-md p-4 md:p-6 rounded-2xl border border-slate-700/60 shadow-xl flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/20 text-emerald-400">
             <Calendar className="w-6 h-6" />
@@ -185,14 +185,14 @@ export default function Dashboard() {
           <table className="w-full text-left text-sm text-slate-300">
             <thead className="bg-slate-900/90 text-xs uppercase tracking-wider text-slate-400 border-b border-slate-700">
               <tr>
-                <th className="py-4 px-5">Thành viên</th>
-                <th className="py-4 px-4 text-right">Tiền phòng</th>
-                <th className="py-4 px-4 text-right">Dịch vụ</th>
-                <th className="py-4 px-4 text-right">Gửi xe</th>
-                <th className="py-4 px-4 text-right">Điện + Nước (/6)</th>
-                <th className="py-4 px-4 text-right">Phát sinh (/6)</th>
-                <th className="py-4 px-5 text-right font-bold text-emerald-400">TỔNG ĐÓNG</th>
-                <th className="py-4 px-5 text-center">Hoá Đơn</th>
+                <th className="py-3 px-3 md:py-4 md:px-5">Thành viên</th>
+                <th className="py-3 px-3 md:py-4 md:px-4 text-right">Tiền phòng</th>
+                <th className="py-3 px-3 md:py-4 md:px-4 text-right">Dịch vụ</th>
+                <th className="py-3 px-3 md:py-4 md:px-4 text-right">Gửi xe</th>
+                <th className="py-3 px-3 md:py-4 md:px-4 text-right">Điện + Nước (/6)</th>
+                <th className="py-3 px-3 md:py-4 md:px-4 text-right">Phát sinh (/6)</th>
+                <th className="py-3 px-3 md:py-4 md:px-5 text-right font-bold text-emerald-400">TỔNG ĐÓNG</th>
+                <th className="py-3 px-3 md:py-4 md:px-5 text-center">Hoá Đơn</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700/50">
@@ -215,33 +215,33 @@ export default function Dashboard() {
                 billingData.map((item, index) => (
                   <tr
                     key={item.member_id || index}
-                    className="hover:bg-slate-700/40 transition-colors"
+                    className="hover:bg-slate-700/40 transition-colors text-xs md:text-sm"
                   >
-                    <td className="py-4 px-5 font-semibold text-slate-100 flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-full bg-slate-700 border border-slate-600 flex items-center justify-center text-xs font-bold text-emerald-400">
+                    <td className="py-3 px-3 md:py-4 md:px-5 font-semibold text-slate-100 flex items-center gap-2 md:gap-2.5">
+                      <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-slate-700 border border-slate-600 flex items-center justify-center text-[10px] md:text-xs font-bold text-emerald-400">
                         {item.name ? item.name.charAt(0) : '?'}
                       </div>
-                      <span>{item.name}</span>
+                      <span className="truncate">{item.name}</span>
                     </td>
-                    <td className="py-4 px-4 text-right font-mono text-slate-300">
+                    <td className="py-3 px-3 md:py-4 md:px-4 text-right font-mono text-slate-300">
                       {formatVND(item.fixed_rent)}
                     </td>
-                    <td className="py-4 px-4 text-right font-mono text-slate-300">
+                    <td className="py-3 px-3 md:py-4 md:px-4 text-right font-mono text-slate-300">
                       {formatVND(item.service_fee)}
                     </td>
-                    <td className="py-4 px-4 text-right font-mono text-slate-300">
+                    <td className="py-3 px-3 md:py-4 md:px-4 text-right font-mono text-slate-300">
                       {formatVND(item.parking_fee)}
                     </td>
-                    <td className="py-4 px-4 text-right font-mono text-slate-300">
+                    <td className="py-3 px-3 md:py-4 md:px-4 text-right font-mono text-slate-300">
                       {formatVND(item.utility_share)}
                     </td>
-                    <td className="py-4 px-4 text-right font-mono text-slate-300">
+                    <td className="py-3 px-3 md:py-4 md:px-4 text-right font-mono text-slate-300">
                       {formatVND(item.extra_expense_share)}
                     </td>
-                    <td className="py-4 px-5 text-right font-mono font-bold text-base text-emerald-400 bg-emerald-500/5">
+                    <td className="py-3 px-3 md:py-4 md:px-5 text-right font-mono font-bold text-sm md:text-base text-emerald-400 bg-emerald-500/5">
                       {formatVND(item.total_due)}
                     </td>
-                    <td className="py-4 px-5 text-center">
+                    <td className="py-3 px-3 md:py-4 md:px-5 text-center">
                       <button
                         onClick={() => setSelectedMember(item)}
                         className="inline-flex items-center justify-center p-2 bg-slate-700/50 hover:bg-emerald-500 hover:text-white text-slate-300 rounded-xl transition-colors border border-slate-600 hover:border-emerald-500 shadow-sm"
@@ -256,13 +256,13 @@ export default function Dashboard() {
             </tbody>
             {billingData.length > 0 && (
               <tfoot className="bg-slate-900/90 font-bold border-t-2 border-slate-600 text-slate-200">
-                <tr>
-                  <td className="py-4 px-5 text-emerald-400 flex items-center gap-1.5">
-                    <Sparkles className="w-4 h-4" />
+                <tr className="text-sm md:text-base">
+                  <td className="py-4 px-3 md:px-5 text-emerald-400 flex items-center gap-1.5 whitespace-nowrap">
+                    <Sparkles className="w-4 h-4 hidden md:block" />
                     <span>TỔNG CỘNG THU:</span>
                   </td>
                   <td colSpan="5"></td>
-                  <td className="py-4 px-5 text-right text-lg text-emerald-400 font-mono">
+                  <td className="py-4 px-3 md:px-5 text-right text-base md:text-lg text-emerald-400 font-mono">
                     {formatVND(grandTotal)}
                   </td>
                   <td></td>
