@@ -5,6 +5,8 @@ import Dashboard from '../components/Dashboard';
 import ExpenseForm from '../components/ExpenseForm';
 import UtilityForm from '../components/UtilityForm';
 
+import ExpenseList from '../components/ExpenseList';
+
 export default function Home() {
   const currentDate = new Date();
   const [activeMonth, setActiveMonth] = useState(currentDate.getMonth() + 1);
@@ -37,12 +39,22 @@ export default function Home() {
           onUpdated={handleDataUpdated}
         />
 
-        {/* Form 2: Thêm Chi Phí Mua Đồ Phát Sinh */}
-        <ExpenseForm
-          month={activeMonth}
-          year={activeYear}
-          onExpenseAdded={handleDataUpdated}
-        />
+        <div className="space-y-6">
+          {/* Form 2: Thêm Chi Phí Mua Đồ Phát Sinh */}
+          <ExpenseForm
+            month={activeMonth}
+            year={activeYear}
+            onExpenseAdded={handleDataUpdated}
+          />
+          
+          {/* Form 3: Danh sách & Xóa Chi Phí */}
+          <ExpenseList 
+            month={activeMonth}
+            year={activeYear}
+            refreshKey={refreshKey}
+            onExpenseDeleted={handleDataUpdated}
+          />
+        </div>
       </div>
 
       {/* Bảng chốt sổ tổng quan */}

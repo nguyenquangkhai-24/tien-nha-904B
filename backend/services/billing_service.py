@@ -34,7 +34,12 @@ def calculate_member_bill(month: int, year: int) -> List[Dict[str, Any]]:
     try:
         members_resp = supabase.table("members").select("*").execute()
         if members_resp and members_resp.data and len(members_resp.data) > 0:
-            members = members_resp.data
+            # Deduplicate theo tên
+            seen = set()
+            for m in members_resp.data:
+                if m["name"] not in seen:
+                    seen.add(m["name"])
+                    members.append(m)
     except Exception as e:
         print(f"Warning: Fetching members from DB failed ({e}). Using default members list.")
 
