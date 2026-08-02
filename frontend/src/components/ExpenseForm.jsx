@@ -5,12 +5,12 @@ import { createExpense, getMembers } from '../services/api';
 import { ShoppingCart, Plus, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 
 const DEFAULT_MEMBERS = [
-  { id: '1', name: 'Duy' },
-  { id: '2', name: 'Khải' },
-  { id: '3', name: 'P.Khang' },
-  { id: '4', name: 'N.Khang' },
-  { id: '5', name: 'Thịnh' },
-  { id: '6', name: 'Khoa' },
+  { id: '11111111-1111-1111-1111-111111111111', name: 'Duy' },
+  { id: '22222222-2222-2222-2222-222222222222', name: 'Khải' },
+  { id: '33333333-3333-3333-3333-333333333333', name: 'P.Khang' },
+  { id: '44444444-4444-4444-4444-444444444444', name: 'N.Khang' },
+  { id: '55555555-5555-5555-5555-555555555555', name: 'Thịnh' },
+  { id: '66666666-6666-6666-6666-666666666666', name: 'Khoa' },
 ];
 
 export default function ExpenseForm({ month, year, onExpenseAdded }) {
@@ -19,7 +19,7 @@ export default function ExpenseForm({ month, year, onExpenseAdded }) {
   const [selectedYear, setSelectedYear] = useState(year || currentDate.getFullYear());
 
   const [members, setMembers] = useState(DEFAULT_MEMBERS);
-  const [buyerId, setBuyerId] = useState('');
+  const [buyerId, setBuyerId] = useState(DEFAULT_MEMBERS[0].id);
   const [itemName, setItemName] = useState('');
   const [amount, setAmount] = useState('');
 
@@ -27,7 +27,7 @@ export default function ExpenseForm({ month, year, onExpenseAdded }) {
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
-  // Lấy danh sách thành viên từ backend nếu có
+  // Lấy danh sách thành viên từ backend
   useEffect(() => {
     const fetchMembersList = async () => {
       try {
@@ -38,6 +38,7 @@ export default function ExpenseForm({ month, year, onExpenseAdded }) {
         }
       } catch (err) {
         console.warn('Dùng danh sách thành viên mặc định:', err);
+        setMembers(DEFAULT_MEMBERS);
         setBuyerId(DEFAULT_MEMBERS[0].id);
       }
     };
@@ -83,7 +84,20 @@ export default function ExpenseForm({ month, year, onExpenseAdded }) {
       }
     } catch (err) {
       console.error('Lỗi khi thêm chi phí:', err);
-      setErrorMsg(err.response?.data?.detail || 'Không thể thêm chi phí. Vui lòng thử lại.');
+
+      // Xử lý thông báo lỗi an toàn tránh làm crash React (Objects are not valid as a React child)
+      let msg = 'Không thể thêm chi phí. Vui lòng kiểm tra kết nối Backend.';
+      if (err.response?.data?.detail) {
+        const detail = err.response.data.detail;
+        if (typeof detail === 'string') {
+          msg = detail;
+        } else if (Array.isArray(detail)) {
+          msg = detail.map((d) => d.msg || JSON.stringify(d)).join(', ');
+        } else if (typeof detail === 'object') {
+          msg = JSON.stringify(detail);
+        }
+      }
+      setErrorMsg(msg);
     } finally {
       setLoading(false);
     }
@@ -104,14 +118,14 @@ export default function ExpenseForm({ month, year, onExpenseAdded }) {
       {successMsg && (
         <div className="mb-5 p-3.5 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center gap-2.5 text-emerald-300 text-sm">
           <CheckCircle className="w-4 h-4 flex-shrink-0" />
-          <span>{successMsg}</span>
+          <span>{String(successMsg)}</span>
         </div>
       )}
 
       {errorMsg && (
         <div className="mb-5 p-3.5 bg-rose-500/10 border border-rose-500/30 rounded-xl flex items-center gap-2.5 text-rose-300 text-sm">
           <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          <span>{errorMsg}</span>
+          <span>{String(errorMsg)}</span>
         </div>
       )}
 
