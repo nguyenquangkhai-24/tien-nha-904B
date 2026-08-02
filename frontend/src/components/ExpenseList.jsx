@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { getExpensesByMonth, deleteExpense, getMembers } from '../services/api';
-import { List, Trash2, Loader2, AlertCircle } from 'lucide-react';
+import { List, Trash2, Loader2, AlertCircle, Eye, X } from 'lucide-react';
 
 export default function ExpenseList({ month, year, refreshKey, onExpenseDeleted }) {
   const [expenses, setExpenses] = useState([]);
@@ -10,6 +10,7 @@ export default function ExpenseList({ month, year, refreshKey, onExpenseDeleted 
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [deletingId, setDeletingId] = useState(null);
+  const [selectedImage, setSelectedImage] = useState(null);
 
   useEffect(() => {
     const fetchMembers = async () => {
@@ -112,20 +113,51 @@ export default function ExpenseList({ month, year, refreshKey, onExpenseDeleted 
                 </div>
               </div>
               
-              <button
-                onClick={() => handleDelete(expense.id)}
-                disabled={deletingId === expense.id}
-                className="p-2 ml-3 bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white rounded-lg transition-colors border border-rose-500/20 hover:border-transparent active:scale-95 disabled:opacity-50"
-                title="Xóa chi phí"
-              >
-                {deletingId === expense.id ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Trash2 className="w-4 h-4" />
+              <div className="flex items-center gap-2 ml-3">
+                {expense.bill_url && (
+                  <button
+                    onClick={() => setSelectedImage(expense.bill_url)}
+                    className="p-2 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white rounded-lg transition-colors border border-emerald-500/20 hover:border-transparent active:scale-95"
+                    title="Xem Bill"
+                  >
+                    <Eye className="w-4 h-4" />
+                  </button>
                 )}
-              </button>
+                
+                <button
+                  onClick={() => handleDelete(expense.id)}
+                  disabled={deletingId === expense.id}
+                  className="p-2 bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white rounded-lg transition-colors border border-rose-500/20 hover:border-transparent active:scale-95 disabled:opacity-50"
+                  title="Xóa chi phí"
+                >
+                  {deletingId === expense.id ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Modal Xem Ảnh Bill */}
+      {selectedImage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setSelectedImage(null)}>
+          <div className="relative max-w-3xl w-full max-h-[90vh] flex flex-col items-center" onClick={e => e.stopPropagation()}>
+            <button 
+              onClick={() => setSelectedImage(null)}
+              className="absolute -top-12 right-0 p-2 text-slate-300 hover:text-white bg-slate-800/50 hover:bg-rose-500/80 rounded-full transition-all"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <img 
+              src={selectedImage} 
+              alt="Hoá đơn chi phí" 
+              className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl border border-slate-700"
+            />
+          </div>
         </div>
       )}
     </div>

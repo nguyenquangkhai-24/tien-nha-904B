@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { createExpense, getMembers } from '../services/api';
-import { ShoppingCart, Plus, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { ShoppingCart, Plus, CheckCircle, AlertCircle, Loader2, Image as ImageIcon } from 'lucide-react';
 
 const DEFAULT_MEMBERS = [
   { id: '11111111-1111-1111-1111-111111111111', name: 'Duy' },
@@ -22,6 +22,7 @@ export default function ExpenseForm({ month, year, onExpenseAdded }) {
   const [buyerId, setBuyerId] = useState(DEFAULT_MEMBERS[0].id);
   const [itemName, setItemName] = useState('');
   const [amount, setAmount] = useState('');
+  const [billImage, setBillImage] = useState(null); // Lưu trữ base64 của ảnh bill
 
   const [loading, setLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
@@ -44,6 +45,52 @@ export default function ExpenseForm({ month, year, onExpenseAdded }) {
     };
     fetchMembersList();
   }, []);
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setErrorMsg('Vui lòng chọn một tệp hình ảnh hợp lệ.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        // Khởi tạo canvas để nén ảnh
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 800;
+        const MAX_HEIGHT = 800;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Xuất ra dạng Base64 JPEG chất lượng 70%
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+        setBillImage(dataUrl);
+      };
+      img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -73,11 +120,16 @@ export default function ExpenseForm({ month, year, onExpenseAdded }) {
         amount: parsedAmount,
         month: Number(selectedMonth),
         year: Number(selectedYear),
+        bill_url: billImage,
       });
 
       setSuccessMsg(`Đã thêm chi phí "${itemName.trim()}" (${parsedAmount.toLocaleString('vi-VN')}đ) thành công!`);
       setItemName('');
       setAmount('');
+      setBillImage(null);
+      // Reset input file (tùy chọn nhưng tốt cho UX)
+      const fileInput = document.getElementById('bill_image_input');
+      if (fileInput) fileInput.value = '';
 
       if (onExpenseAdded) {
         onExpenseAdded();
@@ -177,6 +229,28 @@ export default function ExpenseForm({ month, year, onExpenseAdded }) {
               step="1000"
               className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-slate-100 text-sm placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition font-mono"
             />
+          </div>
+
+          {/* Field 4: Ảnh Bill (File Input) */}
+          <div className="md:col-span-3">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5 flex items-center gap-2">
+              4. Ảnh Bill / Biên lai (Tuỳ chọn)
+            </label>
+            <div className="relative flex items-center">
+              <input
+                id="bill_image_input"
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="block w-full text-sm text-slate-400 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-slate-700 file:text-slate-200 hover:file:bg-slate-600 transition cursor-pointer bg-slate-900 border border-slate-700 rounded-xl"
+              />
+              {billImage && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2 text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-lg text-xs font-semibold">
+                  <CheckCircle className="w-4 h-4" /> Đã nén ảnh
+                </div>
+              )}
+            </div>
+            <p className="text-xs text-slate-500 mt-2">Ảnh sẽ được tự động nén nhỏ gọn để tiết kiệm dung lượng hệ thống.</p>
           </div>
         </div>
 

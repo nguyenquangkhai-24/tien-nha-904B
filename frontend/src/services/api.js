@@ -45,7 +45,7 @@ export const updateMonthlyUtilities = async (month, year, { electricity_amount, 
   return response.data;
 };
 
-export const createExpense = async ({ buyer_id, item_name, amount, month, year, cycle_id }) => {
+export const createExpense = async ({ buyer_id, item_name, amount, month, year, cycle_id, bill_url }) => {
   const response = await api.post('/expenses', {
     buyer_id,
     item_name,
@@ -53,6 +53,7 @@ export const createExpense = async ({ buyer_id, item_name, amount, month, year, 
     month,
     year,
     cycle_id,
+    bill_url,
   });
   return response.data;
 };

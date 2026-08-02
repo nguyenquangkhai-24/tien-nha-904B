@@ -14,6 +14,7 @@ class CreateExpenseRequest(BaseModel):
     cycle_id: Optional[UUID] = None
     month: Optional[int] = None
     year: Optional[int] = None
+    bill_url: Optional[str] = None
 
 
 @router.post("")
@@ -66,6 +67,7 @@ def create_expense(payload: CreateExpenseRequest):
         "buyer_id": str(payload.buyer_id),
         "item_name": payload.item_name,
         "amount": payload.amount,
+        "bill_url": payload.bill_url,
     }
 
     try:
