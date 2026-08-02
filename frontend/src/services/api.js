@@ -94,4 +94,9 @@ export const getMembers = async () => {
   return response.data;
 };
 
+export const getYearlyStats = async (year) => {
+  const response = await api.get(`/yearly/${year}`);
+  return response.data;
+};
+
 export default api;

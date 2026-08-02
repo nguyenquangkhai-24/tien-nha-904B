@@ -19,6 +19,7 @@ import {
 
 import MemberBillModal from './MemberBillModal';
 import MemberConfigModal from './MemberConfigModal';
+import AnalyticsChart from './AnalyticsChart';
 
 const FALLBACK_BILLING_DATA = [
   { member_id: '1', name: 'Duy', fixed_rent: 3750000, service_fee: 133000, parking_fee: 173000, utility_share: 0, extra_expense_share: 0, offset_amount: 0, total_due: 4056000 },
@@ -359,6 +360,9 @@ export default function Dashboard() {
           onUpdated={fetchBillingData}
         />
       )}
+
+      {/* Analytics Chart */}
+      <AnalyticsChart currentYear={year} />
     </div>
   );
 }
