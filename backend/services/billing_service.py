@@ -94,8 +94,8 @@ def calculate_member_bill(month: int, year: int) -> List[Dict[str, Any]]:
         buyer_id = str(exp.get("buyer_id"))
         member_offsets[buyer_id] = member_offsets.get(buyer_id, 0) + exp.get("amount", 0)
 
-    # 4. Fetch các cấu hình ghi đè (Monthly_Overrides) cho tháng này (ví dụ tiền xe)
-    overrides_map: Dict[str, int] = {}
+    # 4. Fetch các cấu hình ghi đè (Monthly_Overrides) cho tháng này (ví dụ tiền xe, trạng thái thu tiền)
+    overrides_data: Dict[str, Dict[str, Any]] = {}
     if cycle_id:
         try:
             overrides_resp = (
@@ -107,8 +107,10 @@ def calculate_member_bill(month: int, year: int) -> List[Dict[str, Any]]:
             if overrides_resp and overrides_resp.data:
                 for ov in overrides_resp.data:
                     m_id = str(ov.get("member_id"))
-                    if ov.get("parking_fee") is not None:
-                        overrides_map[m_id] = ov.get("parking_fee")
+                    overrides_data[m_id] = {
+                        "parking_fee": ov.get("parking_fee"),
+                        "is_paid": ov.get("is_paid", False),
+                    }
         except Exception as e:
             print(f"Warning: Fetching monthly_overrides failed ({e}).")
 
@@ -118,8 +120,14 @@ def calculate_member_bill(month: int, year: int) -> List[Dict[str, Any]]:
         m_id = str(member["id"])
         fixed_rent = member.get("fixed_rent", 0)
 
+        # Dữ liệu overrides của member
+        ov_member = overrides_data.get(m_id, {})
+        
         # Phí xe: Lấy ghi đè nếu có, nếu không lấy mặc định 173.000đ
-        parking_fee = overrides_map.get(m_id, DEFAULT_PARKING_FEE)
+        parking_fee = ov_member.get("parking_fee") if ov_member.get("parking_fee") is not None else DEFAULT_PARKING_FEE
+        
+        # Trạng thái đã thu tiền (is_paid)
+        is_paid = ov_member.get("is_paid", False)
 
         # Số tiền người đó đã ứng mua đồ phát sinh trong tháng
         offset_amount = member_offsets.get(m_id, 0)
@@ -143,6 +151,7 @@ def calculate_member_bill(month: int, year: int) -> List[Dict[str, Any]]:
             "extra_expense_share": extra_share_per_person,
             "offset_amount": offset_amount, # Vẫn trả về phòng hờ nhưng không trừ vào total_due
             "total_due": total_due,
+            "is_paid": is_paid,
         })
 
     return billing_summary

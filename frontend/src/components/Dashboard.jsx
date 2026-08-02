@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { getMonthlyBilling } from '../services/api';
+import { updatePaymentStatus } from '../services/api';
 import { 
   Calendar, 
   Copy, 
@@ -10,7 +11,9 @@ import {
   AlertCircle,
   Sparkles,
   WifiOff,
-  ReceiptText
+  ReceiptText,
+  CheckCircle2,
+  XCircle
 } from 'lucide-react';
 
 import MemberBillModal from './MemberBillModal';
@@ -34,6 +37,7 @@ export default function Dashboard() {
   const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
+  const [togglingStatusId, setTogglingStatusId] = useState(null);
 
   const fetchBillingData = async () => {
     setLoading(true);
@@ -60,6 +64,23 @@ export default function Dashboard() {
   useEffect(() => {
     fetchBillingData();
   }, [month, year]);
+
+  const handleTogglePayment = async (memberId, currentStatus) => {
+    setTogglingStatusId(memberId);
+    try {
+      const newStatus = !currentStatus;
+      await updatePaymentStatus(memberId, month, year, newStatus);
+      // Update local state without fetching all again
+      setBillingData(prevData => prevData.map(item => 
+        item.member_id === memberId ? { ...item, is_paid: newStatus } : item
+      ));
+    } catch (err) {
+      console.error('Lỗi khi cập nhật trạng thái thu tiền:', err);
+      alert('Không thể cập nhật trạng thái thu tiền. Vui lòng thử lại.');
+    } finally {
+      setTogglingStatusId(null);
+    }
+  };
 
   const formatVND = (amount) => {
     return new Intl.NumberFormat('vi-VN').format(amount || 0) + 'đ';
@@ -192,13 +213,14 @@ export default function Dashboard() {
                 <th className="py-3 px-3 md:py-4 md:px-4 text-right">Điện + Nước (/6)</th>
                 <th className="py-3 px-3 md:py-4 md:px-4 text-right">Phát sinh (/6)</th>
                 <th className="py-3 px-3 md:py-4 md:px-5 text-right font-bold text-emerald-400">TỔNG ĐÓNG</th>
+                <th className="py-3 px-3 md:py-4 md:px-4 text-center">Trạng Thái</th>
                 <th className="py-3 px-3 md:py-4 md:px-5 text-center">Hoá Đơn</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700/50">
               {loading ? (
                 <tr>
-                  <td colSpan="8" className="py-12 text-center text-slate-400">
+                  <td colSpan="9" className="py-12 text-center text-slate-400">
                     <div className="flex justify-center items-center gap-2">
                       <RefreshCw className="w-5 h-5 animate-spin text-emerald-400" />
                       <span>Đang kết nối Backend server và tính toán...</span>
@@ -207,7 +229,7 @@ export default function Dashboard() {
                 </tr>
               ) : billingData.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="py-12 text-center text-slate-400">
+                  <td colSpan="9" className="py-12 text-center text-slate-400">
                     Chưa có dữ liệu chốt sổ cho Tháng {month}/{year}.
                   </td>
                 </tr>
@@ -241,6 +263,28 @@ export default function Dashboard() {
                     <td className="py-3 px-3 md:py-4 md:px-5 text-right font-mono font-bold text-sm md:text-base text-emerald-400 bg-emerald-500/5">
                       {formatVND(item.total_due)}
                     </td>
+                    <td className="py-3 px-3 md:py-4 md:px-4 text-center">
+                      <button
+                        onClick={() => handleTogglePayment(item.member_id, item.is_paid)}
+                        disabled={togglingStatusId === item.member_id}
+                        className={`inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${
+                          item.is_paid
+                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500 hover:text-white'
+                            : 'bg-slate-700/50 text-slate-400 border-slate-600 hover:bg-emerald-500/80 hover:text-white hover:border-emerald-500'
+                        } disabled:opacity-50`}
+                      >
+                        {togglingStatusId === item.member_id ? (
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        ) : item.is_paid ? (
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                        ) : (
+                          <XCircle className="w-3.5 h-3.5" />
+                        )}
+                        <span className="hidden lg:inline">
+                          {item.is_paid ? 'Đã Thu' : 'Chưa Thu'}
+                        </span>
+                      </button>
+                    </td>
                     <td className="py-3 px-3 md:py-4 md:px-5 text-center">
                       <button
                         onClick={() => setSelectedMember(item)}
@@ -265,7 +309,7 @@ export default function Dashboard() {
                   <td className="py-4 px-3 md:px-5 text-right text-base md:text-lg text-emerald-400 font-mono">
                     {formatVND(grandTotal)}
                   </td>
-                  <td></td>
+                  <td colSpan="2"></td>
                 </tr>
               </tfoot>
             )}

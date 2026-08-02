@@ -19,6 +19,12 @@ class UpdateOverrideRequest(BaseModel):
     year: int
     parking_fee: int
 
+class UpdateStatusRequest(BaseModel):
+    member_id: UUID
+    month: int
+    year: int
+    is_paid: bool
+
 
 @router.get("/billing/{month}/{year}")
 def get_monthly_billing(month: int, year: int):
@@ -165,3 +171,73 @@ def update_parking_override(payload: UpdateOverrideRequest):
         raise HTTPException(status_code=500, detail=f"Lỗi ghi đè phí (Supabase): {str(e)}")
 
     return {"message": "Cập nhật ghi đè tiền gửi xe thành công.", "data": result.data}
+
+@router.put("/overrides/status")
+def update_payment_status(payload: UpdateStatusRequest):
+    """
+    6. PUT /api/overrides/status
+    Cập nhật trạng thái đã thu tiền (is_paid) cho một người trong tháng.
+    """
+    try:
+        cycle_res = (
+            supabase.table("monthly_cycles")
+            .select("*")
+            .eq("month", payload.month)
+            .eq("year", payload.year)
+            .execute()
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Lỗi kiểm tra chu kỳ: {str(e)}")
+
+    if cycle_res and cycle_res.data:
+        cycle_id = cycle_res.data[0]["id"]
+    else:
+        try:
+            new_cycle = (
+                supabase.table("monthly_cycles")
+                .insert({
+                    "month": payload.month,
+                    "year": payload.year,
+                    "electricity_amount": 0,
+                    "water_amount": 0,
+                })
+                .execute()
+            )
+            cycle_id = new_cycle.data[0]["id"]
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Lỗi tạo chu kỳ: {str(e)}")
+
+    try:
+        ov_res = (
+            supabase.table("monthly_overrides")
+            .select("*")
+            .eq("cycle_id", cycle_id)
+            .eq("member_id", str(payload.member_id))
+            .execute()
+        )
+
+        if ov_res and ov_res.data:
+            ov_id = ov_res.data[0]["id"]
+            result = (
+                supabase.table("monthly_overrides")
+                .update({"is_paid": payload.is_paid})
+                .eq("id", ov_id)
+                .execute()
+            )
+        else:
+            # Lấy parking_fee mặc định nếu chưa có override nào để tránh null
+            from backend.services.billing_service import DEFAULT_PARKING_FEE
+            result = (
+                supabase.table("monthly_overrides")
+                .insert({
+                    "cycle_id": cycle_id,
+                    "member_id": str(payload.member_id),
+                    "parking_fee": DEFAULT_PARKING_FEE,
+                    "is_paid": payload.is_paid,
+                })
+                .execute()
+            )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Lỗi cập nhật trạng thái thu tiền: {str(e)}")
+
+    return {"message": "Cập nhật trạng thái thu tiền thành công.", "data": result.data}

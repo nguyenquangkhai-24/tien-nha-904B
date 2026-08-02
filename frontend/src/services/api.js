@@ -63,6 +63,16 @@ export const deleteExpense = async (expenseId) => {
   return response.data;
 };
 
+export const updatePaymentStatus = async (memberId, month, year, isPaid) => {
+  const response = await api.put('/overrides/status', {
+    member_id: memberId,
+    month,
+    year,
+    is_paid: isPaid,
+  });
+  return response.data;
+};
+
 export const getExpensesByMonth = async (month, year) => {
   const response = await api.get(`/expenses/${month}/${year}`);
   return response.data;
