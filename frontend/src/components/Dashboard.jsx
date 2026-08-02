@@ -14,12 +14,14 @@ import {
   ReceiptText,
   CheckCircle2,
   XCircle,
-  Settings
+  Settings,
+  Wrench
 } from 'lucide-react';
 
 import MemberBillModal from './MemberBillModal';
 import MemberConfigModal from './MemberConfigModal';
 import AnalyticsChart from './AnalyticsChart';
+import SystemConfigModal from './SystemConfigModal';
 
 const FALLBACK_BILLING_DATA = [
   { member_id: '1', name: 'Duy', fixed_rent: 3750000, service_fee: 133000, parking_fee: 173000, utility_share: 0, extra_expense_share: 0, offset_amount: 0, total_due: 4056000 },
@@ -41,6 +43,7 @@ export default function Dashboard() {
   const [copied, setCopied] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
   const [configMember, setConfigMember] = useState(null);
+  const [showSystemConfig, setShowSystemConfig] = useState(false);
   const [togglingStatusId, setTogglingStatusId] = useState(null);
 
   const fetchBillingData = async () => {
@@ -188,6 +191,15 @@ export default function Dashboard() {
           >
             {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
             <span>{copied ? 'Đã copy Messenger!' : 'Copy tin nhắn Messenger'}</span>
+          </button>
+          {/* Settings Button */}
+          <button
+            onClick={() => setShowSystemConfig(true)}
+            className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-600 rounded-xl text-sm font-medium transition active:scale-95"
+            title="Cài đặt hệ thống"
+          >
+            <Wrench className="w-4 h-4" />
+            <span className="hidden sm:inline">Hệ thống</span>
           </button>
         </div>
       </div>
@@ -357,6 +369,14 @@ export default function Dashboard() {
           month={month}
           year={year}
           onClose={() => setConfigMember(null)}
+          onUpdated={fetchBillingData}
+        />
+      )}
+
+      {/* System Config Modal */}
+      {showSystemConfig && (
+        <SystemConfigModal
+          onClose={() => setShowSystemConfig(false)}
           onUpdated={fetchBillingData}
         />
       )}

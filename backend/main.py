@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from backend.routers import members, monthly, expenses
+from backend.routers import members, monthly, expenses, settings
 
 app = FastAPI(
     title="Tiền Nhà 904B API",
@@ -21,6 +21,7 @@ app.add_middleware(
 app.include_router(members.router)
 app.include_router(monthly.router)
 app.include_router(expenses.router)
+app.include_router(settings.router)
 
 
 @app.get("/")

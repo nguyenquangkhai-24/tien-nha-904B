@@ -1,7 +1,7 @@
 from typing import List, Dict, Any
 from backend.database import supabase
 
-# Phí cố định theo 01_business_logic.md
+# Phí cố định mặc định (Sẽ được ghi đè bởi cấu hình trong DB nếu có)
 DEFAULT_SERVICE_FEE = 133000
 DEFAULT_PARKING_FEE = 173000
 
@@ -29,6 +29,17 @@ def calculate_member_bill(month: int, year: int) -> List[Dict[str, Any]]:
         + (Tổng chi phí phát sinh cả nhà / 6) (5)
         - Tổng số tiền người đó đã ứng ra mua đồ phát sinh (6)
     """
+    # 0. Fetch cấu hình chung (Phí dịch vụ)
+    service_fee = DEFAULT_SERVICE_FEE
+    try:
+        settings_resp = supabase.table("global_settings").select("*").execute()
+        if settings_resp and settings_resp.data:
+            for row in settings_resp.data:
+                if row["key"] == "service_fee":
+                    service_fee = row["value"]
+    except Exception as e:
+        print(f"Warning: Fetching global_settings failed ({e}). Using default service fee.")
+
     # 1. Fetch danh sách thành viên từ DB (nếu rỗng sẽ tự động dùng DEFAULT_MEMBERS)
     members = []
     try:
@@ -154,7 +165,7 @@ def calculate_member_bill(month: int, year: int) -> List[Dict[str, Any]]:
         # CÔNG THỨC CHỐT SỔ MỚI: Không trừ tiền ứng (theo yêu cầu của user)
         total_due = (
             fixed_rent
-            + DEFAULT_SERVICE_FEE
+            + service_fee
             + parking_fee
             + member_utility_share
             + member_extra_share
@@ -164,7 +175,7 @@ def calculate_member_bill(month: int, year: int) -> List[Dict[str, Any]]:
             "member_id": member["id"],
             "name": member["name"],
             "fixed_rent": fixed_rent,
-            "service_fee": DEFAULT_SERVICE_FEE,
+            "service_fee": service_fee,
             "parking_fee": parking_fee,
             "utility_share": member_utility_share,
             "extra_expense_share": member_extra_share,

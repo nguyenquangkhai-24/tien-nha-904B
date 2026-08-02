@@ -99,4 +99,31 @@ export const getYearlyStats = async (year) => {
   return response.data;
 };
 
+// --- MEMBERS API ---
+export const addMember = async (name, fixed_rent) => {
+  const response = await api.post('/members', { name, fixed_rent });
+  return response.data;
+};
+
+export const updateMember = async (member_id, name, fixed_rent) => {
+  const response = await api.put(`/members/${member_id}`, { name, fixed_rent });
+  return response.data;
+};
+
+export const deleteMember = async (member_id) => {
+  const response = await api.delete(`/members/${member_id}`);
+  return response.data;
+};
+
+// --- SETTINGS API ---
+export const getSettings = async () => {
+  const response = await api.get('/settings');
+  return response.data;
+};
+
+export const updateSetting = async (key, value) => {
+  const response = await api.put(`/settings/${key}`, { value });
+  return response.data;
+};
+
 export default api;
