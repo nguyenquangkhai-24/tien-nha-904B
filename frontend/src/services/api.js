@@ -1,16 +1,27 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+// Lấy URL từ biến môi trường
+let rawUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
 
-// Cấu hình Axios instance trỏ tới http://localhost:8000/api
+// Chuẩn hóa URL: Tự động loại bỏ dấu / thừa ở cuối
+rawUrl = rawUrl.trim().replace(/\/+$/, '');
+
+// Tự động bổ sung /api nếu người dùng lỡ điền URL chỉ có domain
+if (!rawUrl.endsWith('/api')) {
+  rawUrl = `${rawUrl}/api`;
+}
+
+const API_BASE_URL = rawUrl;
+
+// Khởi tạo Axios instance
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 10000, // Timeout 10 giây nếu server không phản hồi
 });
 
-// Các helper API tương ứng với 03_api_endpoints.md
 export const getMonthlyBilling = async (month, year) => {
   const response = await api.get(`/billing/${month}/${year}`);
   return response.data;

@@ -8,19 +8,11 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# Cấu hình CORS để Frontend (localhost:3000, 5173, ...) có thể gọi được API
-origins = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "*",  # Cho phép tất cả các nguồn truy cập trong môi trường dev
-]
-
+# Cấu hình CORS hỗ trợ linh hoạt mọi domain Vercel, Render và Localhost
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -34,6 +26,7 @@ app.include_router(expenses.router)
 @app.get("/")
 def read_root():
     return {
+        "status": "online",
         "message": "API Tiền Nhà 904B đang hoạt động.",
         "docs": "/docs",
     }
