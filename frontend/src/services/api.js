@@ -78,12 +78,13 @@ export const getExpensesByMonth = async (month, year) => {
   return response.data;
 };
 
-export const updateParkingOverride = async ({ member_id, month, year, parking_fee }) => {
+export const updateMemberOverride = async ({ member_id, month, year, parking_fee, is_excluded }) => {
   const response = await api.put('/overrides', {
     member_id,
     month,
     year,
     parking_fee,
+    is_excluded,
   });
   return response.data;
 };

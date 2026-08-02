@@ -13,10 +13,12 @@ import {
   WifiOff,
   ReceiptText,
   CheckCircle2,
-  XCircle
+  XCircle,
+  Settings
 } from 'lucide-react';
 
 import MemberBillModal from './MemberBillModal';
+import MemberConfigModal from './MemberConfigModal';
 
 const FALLBACK_BILLING_DATA = [
   { member_id: '1', name: 'Duy', fixed_rent: 3750000, service_fee: 133000, parking_fee: 173000, utility_share: 0, extra_expense_share: 0, offset_amount: 0, total_due: 4056000 },
@@ -37,6 +39,7 @@ export default function Dashboard() {
   const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
+  const [configMember, setConfigMember] = useState(null);
   const [togglingStatusId, setTogglingStatusId] = useState(null);
 
   const fetchBillingData = async () => {
@@ -107,6 +110,8 @@ export default function Dashboard() {
   };
 
   const grandTotal = billingData.reduce((acc, curr) => acc + (curr.total_due || 0), 0);
+
+  const activeMembersCount = billingData.filter(m => !m.is_excluded).length || 1;
 
   return (
     <div className="w-full max-w-7xl mx-auto space-y-4 md:space-y-6">
@@ -210,8 +215,8 @@ export default function Dashboard() {
                 <th className="py-3 px-3 md:py-4 md:px-4 text-right">Tiền phòng</th>
                 <th className="py-3 px-3 md:py-4 md:px-4 text-right">Dịch vụ</th>
                 <th className="py-3 px-3 md:py-4 md:px-4 text-right">Gửi xe</th>
-                <th className="py-3 px-3 md:py-4 md:px-4 text-right">Điện + Nước (/6)</th>
-                <th className="py-3 px-3 md:py-4 md:px-4 text-right">Phát sinh (/6)</th>
+                <th className="py-3 px-3 md:py-4 md:px-4 text-right">Điện + Nước (/{activeMembersCount})</th>
+                <th className="py-3 px-3 md:py-4 md:px-4 text-right">Phát sinh (/{activeMembersCount})</th>
                 <th className="py-3 px-3 md:py-4 md:px-5 text-right font-bold text-emerald-400">TỔNG ĐÓNG</th>
                 <th className="py-3 px-3 md:py-4 md:px-4 text-center">Trạng Thái</th>
                 <th className="py-3 px-3 md:py-4 md:px-5 text-center">Hoá Đơn</th>
@@ -237,13 +242,30 @@ export default function Dashboard() {
                 billingData.map((item, index) => (
                   <tr
                     key={item.member_id || index}
-                    className="hover:bg-slate-700/40 transition-colors text-xs md:text-sm"
+                    className={`transition-colors text-xs md:text-sm ${item.is_excluded ? 'opacity-50 hover:opacity-100 bg-slate-800/30' : 'hover:bg-slate-700/40'}`}
                   >
-                    <td className="py-3 px-3 md:py-4 md:px-5 font-semibold text-slate-100 flex items-center gap-2 md:gap-2.5">
-                      <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-slate-700 border border-slate-600 flex items-center justify-center text-[10px] md:text-xs font-bold text-emerald-400">
-                        {item.name ? item.name.charAt(0) : '?'}
+                    <td className="py-3 px-3 md:py-4 md:px-5 font-semibold text-slate-100">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 md:gap-2.5">
+                          <div className={`w-6 h-6 md:w-8 md:h-8 rounded-full border flex items-center justify-center text-[10px] md:text-xs font-bold ${
+                            item.is_excluded 
+                              ? 'bg-slate-800 border-slate-700 text-slate-500' 
+                              : 'bg-slate-700 border-slate-600 text-emerald-400'
+                          }`}>
+                            {item.name ? item.name.charAt(0) : '?'}
+                          </div>
+                          <span className={`truncate ${item.is_excluded ? 'line-through text-slate-400' : ''}`}>
+                            {item.name}
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => setConfigMember(item)}
+                          className="p-1.5 md:p-2 bg-slate-800 hover:bg-emerald-500 hover:text-white text-slate-400 rounded-lg transition-colors border border-slate-700 shadow-sm"
+                          title="Cài đặt thành viên"
+                        >
+                          <Settings className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                        </button>
                       </div>
-                      <span className="truncate">{item.name}</span>
                     </td>
                     <td className="py-3 px-3 md:py-4 md:px-4 text-right font-mono text-slate-300">
                       {formatVND(item.fixed_rent)}
@@ -324,6 +346,17 @@ export default function Dashboard() {
           month={month}
           year={year}
           onClose={() => setSelectedMember(null)}
+        />
+      )}
+
+      {/* Member Config Modal */}
+      {configMember && (
+        <MemberConfigModal
+          memberData={configMember}
+          month={month}
+          year={year}
+          onClose={() => setConfigMember(null)}
+          onUpdated={fetchBillingData}
         />
       )}
     </div>

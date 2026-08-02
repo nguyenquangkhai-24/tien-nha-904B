@@ -18,6 +18,7 @@ class UpdateOverrideRequest(BaseModel):
     month: int
     year: int
     parking_fee: int
+    is_excluded: Optional[bool] = False
 
 class UpdateStatusRequest(BaseModel):
     member_id: UUID
@@ -111,7 +112,16 @@ def update_parking_override(payload: UpdateOverrideRequest):
                 cycle_id = cycle_check2.data[0]["id"]
 
     try:
-        # UPSERT ghi đè phí (nếu member đã có thì update, chưa có thì tạo mới)
+        from backend.services.billing_service import DEFAULT_PARKING_FEE
+        
+        # Vì UPSERT cần full config, ta fetch dữ liệu cũ (nếu có)
+        existing_ov = supabase.table("monthly_overrides").select("*").eq("cycle_id", cycle_id).eq("member_id", str(payload.member_id)).execute()
+        
+        current_paid = False
+        if existing_ov and existing_ov.data:
+            current_paid = existing_ov.data[0].get("is_paid", False)
+
+        # UPSERT ghi đè phí và trạng thái nghỉ phép
         result = (
             supabase.table("monthly_overrides")
             .upsert(
@@ -119,6 +129,8 @@ def update_parking_override(payload: UpdateOverrideRequest):
                     "cycle_id": cycle_id,
                     "member_id": str(payload.member_id),
                     "parking_fee": payload.parking_fee,
+                    "is_excluded": payload.is_excluded,
+                    "is_paid": current_paid,
                 },
                 on_conflict="cycle_id,member_id"
             )

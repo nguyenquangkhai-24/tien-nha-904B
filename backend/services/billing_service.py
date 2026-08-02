@@ -65,10 +65,41 @@ def calculate_member_bill(month: int, year: int) -> List[Dict[str, Any]]:
     water_amount = cycle.get("water_amount", 0) if cycle else 0
     cycle_id = cycle.get("id") if cycle else None
 
-    # Tính tiền điện + nước chia 6 cho mỗi người
+    # Lấy thông tin overrides để biết có ai bị loại khỏi vòng chia tiền (is_excluded) hay không
+    overrides_data: Dict[str, Dict[str, Any]] = {}
+    if cycle_id:
+        try:
+            overrides_resp = (
+                supabase.table("monthly_overrides")
+                .select("*")
+                .eq("cycle_id", cycle_id)
+                .execute()
+            )
+            if overrides_resp and overrides_resp.data:
+                for ov in overrides_resp.data:
+                    m_id = str(ov.get("member_id"))
+                    overrides_data[m_id] = {
+                        "parking_fee": ov.get("parking_fee"),
+                        "is_paid": ov.get("is_paid", False),
+                        "is_excluded": ov.get("is_excluded", False),
+                    }
+        except Exception as e:
+            print(f"Warning: Fetching monthly_overrides failed ({e}).")
+
+    # Đếm số lượng thành viên thực sự tham gia chia tiền
+    active_members_count = 0
+    for member in members:
+        m_id = str(member["id"])
+        ov_member = overrides_data.get(m_id, {})
+        if not ov_member.get("is_excluded", False):
+            active_members_count += 1
+            
+    if active_members_count == 0:
+        active_members_count = 1 # Tránh chia cho 0
+
+    # Tính tiền điện + nước chia cho người tham gia
     utility_total = electricity_amount + water_amount
-    num_members = len(members) if len(members) > 0 else 6
-    utility_share_per_person = round(utility_total / num_members)
+    utility_share_per_person = round(utility_total / active_members_count)
 
     # 3. Fetch chi phí phát sinh (Extra_Expenses) cho tháng này
     extra_expenses = []
@@ -86,7 +117,7 @@ def calculate_member_bill(month: int, year: int) -> List[Dict[str, Any]]:
             print(f"Warning: Fetching extra_expenses failed ({e}).")
 
     total_extra_expenses = sum(item.get("amount", 0) for item in extra_expenses)
-    extra_share_per_person = round(total_extra_expenses / num_members)
+    extra_share_per_person = round(total_extra_expenses / active_members_count)
 
     # Tính số tiền từng cá nhân đã ứng ra mua đồ trong tháng đó (Offset)
     member_offsets: Dict[str, int] = {}
@@ -94,25 +125,7 @@ def calculate_member_bill(month: int, year: int) -> List[Dict[str, Any]]:
         buyer_id = str(exp.get("buyer_id"))
         member_offsets[buyer_id] = member_offsets.get(buyer_id, 0) + exp.get("amount", 0)
 
-    # 4. Fetch các cấu hình ghi đè (Monthly_Overrides) cho tháng này (ví dụ tiền xe, trạng thái thu tiền)
-    overrides_data: Dict[str, Dict[str, Any]] = {}
-    if cycle_id:
-        try:
-            overrides_resp = (
-                supabase.table("monthly_overrides")
-                .select("*")
-                .eq("cycle_id", cycle_id)
-                .execute()
-            )
-            if overrides_resp and overrides_resp.data:
-                for ov in overrides_resp.data:
-                    m_id = str(ov.get("member_id"))
-                    overrides_data[m_id] = {
-                        "parking_fee": ov.get("parking_fee"),
-                        "is_paid": ov.get("is_paid", False),
-                    }
-        except Exception as e:
-            print(f"Warning: Fetching monthly_overrides failed ({e}).")
+    # (Fetch monthly_overrides đã được dời lên trên để đếm active_members_count)
 
     # 5. Tính toán tiền chốt sổ cho từng người
     billing_summary = []
@@ -132,13 +145,19 @@ def calculate_member_bill(month: int, year: int) -> List[Dict[str, Any]]:
         # Số tiền người đó đã ứng mua đồ phát sinh trong tháng
         offset_amount = member_offsets.get(m_id, 0)
 
+        # Kiểm tra miễn chia tiền
+        is_excluded = ov_member.get("is_excluded", False)
+        
+        member_utility_share = 0 if is_excluded else utility_share_per_person
+        member_extra_share = 0 if is_excluded else extra_share_per_person
+
         # CÔNG THỨC CHỐT SỔ MỚI: Không trừ tiền ứng (theo yêu cầu của user)
         total_due = (
             fixed_rent
             + DEFAULT_SERVICE_FEE
             + parking_fee
-            + utility_share_per_person
-            + extra_share_per_person
+            + member_utility_share
+            + member_extra_share
         )
 
         billing_summary.append({
@@ -147,11 +166,12 @@ def calculate_member_bill(month: int, year: int) -> List[Dict[str, Any]]:
             "fixed_rent": fixed_rent,
             "service_fee": DEFAULT_SERVICE_FEE,
             "parking_fee": parking_fee,
-            "utility_share": utility_share_per_person,
-            "extra_expense_share": extra_share_per_person,
+            "utility_share": member_utility_share,
+            "extra_expense_share": member_extra_share,
             "offset_amount": offset_amount, # Vẫn trả về phòng hờ nhưng không trừ vào total_due
             "total_due": total_due,
             "is_paid": is_paid,
+            "is_excluded": is_excluded,
         })
 
     return billing_summary
