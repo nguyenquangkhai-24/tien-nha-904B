@@ -5,6 +5,16 @@ from backend.database import supabase
 DEFAULT_SERVICE_FEE = 133000
 DEFAULT_PARKING_FEE = 173000
 
+# Danh sách 6 thành viên cố định làm Mặc Định (Fallback) theo 01_business_logic.md
+DEFAULT_MEMBERS = [
+    {"id": "11111111-1111-1111-1111-111111111111", "name": "Duy", "fixed_rent": 3750000},
+    {"id": "22222222-2222-2222-2222-222222222222", "name": "Khải", "fixed_rent": 3750000},
+    {"id": "33333333-3333-3333-3333-333333333333", "name": "P.Khang", "fixed_rent": 3000000},
+    {"id": "44444444-4444-4444-4444-444444444444", "name": "N.Khang", "fixed_rent": 3000000},
+    {"id": "55555555-5555-5555-5555-555555555555", "name": "Thịnh", "fixed_rent": 2500000},
+    {"id": "66666666-6666-6666-6666-666666666666", "name": "Khoa", "fixed_rent": 2000000},
+]
+
 
 def calculate_member_bill(month: int, year: int) -> List[Dict[str, Any]]:
     """
@@ -19,13 +29,17 @@ def calculate_member_bill(month: int, year: int) -> List[Dict[str, Any]]:
         + (Tổng chi phí phát sinh cả nhà / 6) (5)
         - Tổng số tiền người đó đã ứng ra mua đồ phát sinh (6)
     """
-    # 1. Fetch danh sách thành viên từ DB
+    # 1. Fetch danh sách thành viên từ DB (nếu rỗng sẽ tự động dùng DEFAULT_MEMBERS)
+    members = []
     try:
         members_resp = supabase.table("members").select("*").execute()
-        members = members_resp.data if members_resp and members_resp.data else []
+        if members_resp and members_resp.data and len(members_resp.data) > 0:
+            members = members_resp.data
     except Exception as e:
-        print(f"Error fetching members: {e}")
-        members = []
+        print(f"Warning: Fetching members from DB failed ({e}). Using default members list.")
+
+    if not members:
+        members = DEFAULT_MEMBERS
 
     # 2. Fetch chu kỳ hàng tháng (Monthly_Cycles) cho tháng và năm tương ứng
     cycle = None
@@ -40,7 +54,7 @@ def calculate_member_bill(month: int, year: int) -> List[Dict[str, Any]]:
         if cycle_resp and cycle_resp.data:
             cycle = cycle_resp.data[0]
     except Exception as e:
-        print(f"Error fetching monthly_cycles: {e}")
+        print(f"Warning: Fetching monthly_cycles failed ({e}).")
 
     electricity_amount = cycle.get("electricity_amount", 0) if cycle else 0
     water_amount = cycle.get("water_amount", 0) if cycle else 0
@@ -64,7 +78,7 @@ def calculate_member_bill(month: int, year: int) -> List[Dict[str, Any]]:
             if expenses_resp and expenses_resp.data:
                 extra_expenses = expenses_resp.data
         except Exception as e:
-            print(f"Error fetching extra_expenses: {e}")
+            print(f"Warning: Fetching extra_expenses failed ({e}).")
 
     total_extra_expenses = sum(item.get("amount", 0) for item in extra_expenses)
     extra_share_per_person = round(total_extra_expenses / num_members)
@@ -91,7 +105,7 @@ def calculate_member_bill(month: int, year: int) -> List[Dict[str, Any]]:
                     if ov.get("parking_fee") is not None:
                         overrides_map[m_id] = ov.get("parking_fee")
         except Exception as e:
-            print(f"Error fetching monthly_overrides: {e}")
+            print(f"Warning: Fetching monthly_overrides failed ({e}).")
 
     # 5. Tính toán tiền chốt sổ cho từng người
     billing_summary = []

@@ -7,12 +7,19 @@ import {
   Copy, 
   Check, 
   RefreshCw, 
-  Receipt, 
-  User, 
-  DollarSign, 
   AlertCircle,
-  Sparkles
+  Sparkles,
+  WifiOff
 } from 'lucide-react';
+
+const FALLBACK_BILLING_DATA = [
+  { member_id: '1', name: 'Duy', fixed_rent: 3750000, service_fee: 133000, parking_fee: 173000, utility_share: 0, extra_expense_share: 0, offset_amount: 0, total_due: 4056000 },
+  { member_id: '2', name: 'Khải', fixed_rent: 3750000, service_fee: 133000, parking_fee: 173000, utility_share: 0, extra_expense_share: 0, offset_amount: 0, total_due: 4056000 },
+  { member_id: '3', name: 'P.Khang', fixed_rent: 3000000, service_fee: 133000, parking_fee: 173000, utility_share: 0, extra_expense_share: 0, offset_amount: 0, total_due: 3306000 },
+  { member_id: '4', name: 'N.Khang', fixed_rent: 3000000, service_fee: 133000, parking_fee: 173000, utility_share: 0, extra_expense_share: 0, offset_amount: 0, total_due: 3306000 },
+  { member_id: '5', name: 'Thịnh', fixed_rent: 2500000, service_fee: 133000, parking_fee: 173000, utility_share: 0, extra_expense_share: 0, offset_amount: 0, total_due: 2806000 },
+  { member_id: '6', name: 'Khoa', fixed_rent: 2000000, service_fee: 133000, parking_fee: 173000, utility_share: 0, extra_expense_share: 0, offset_amount: 0, total_due: 2306000 },
+];
 
 export default function Dashboard() {
   const currentDate = new Date();
@@ -20,18 +27,27 @@ export default function Dashboard() {
   const [year, setYear] = useState(currentDate.getFullYear());
   const [billingData, setBillingData] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [isOfflineFallback, setIsOfflineFallback] = useState(false);
   const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
 
   const fetchBillingData = async () => {
     setLoading(true);
     setError(null);
+    setIsOfflineFallback(false);
+
     try {
       const data = await getMonthlyBilling(month, year);
-      setBillingData(data || []);
+      if (Array.isArray(data) && data.length > 0) {
+        setBillingData(data);
+      } else {
+        setBillingData(FALLBACK_BILLING_DATA);
+      }
     } catch (err) {
       console.error('Lỗi khi tải dữ liệu chốt sổ:', err);
-      setError('Không thể tải dữ liệu chốt sổ. Vui lòng kiểm tra backend server.');
+      setError('Chưa kết nối tới Backend server (có thể Render đang khởi động lại). Đang hiển thị bảng mặc định 6 thành viên.');
+      setIsOfflineFallback(true);
+      setBillingData(FALLBACK_BILLING_DATA);
     } finally {
       setLoading(false);
     }
@@ -126,7 +142,7 @@ export default function Dashboard() {
             className="flex items-center gap-1.5 px-3 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-xl text-sm font-medium transition active:scale-95 disabled:opacity-50"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            <span>Tải lại</span>
+            <span>Thử lại</span>
           </button>
 
           {/* Copy Button */}
@@ -145,11 +161,17 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Error notification */}
-      {error && (
-        <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-2xl flex items-center gap-3 text-rose-300 text-sm">
-          <AlertCircle className="w-5 h-5 flex-shrink-0" />
-          <span>{error}</span>
+      {/* Offline / Backend status alert */}
+      {isOfflineFallback && (
+        <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-start gap-3 text-amber-300 text-sm">
+          <WifiOff className="w-5 h-5 flex-shrink-0 mt-0.5 text-amber-400" />
+          <div>
+            <p className="font-semibold">{error}</p>
+            <p className="text-xs text-amber-400/80 mt-1">
+              👉 <strong>Nguyên nhân:</strong> Nếu deploy Render bản miễn phí, server sẽ cần ~30 giây để thức dậy khi có truy cập mới.
+              Bạn có thể nhấn nút <strong>"Thử lại"</strong> ở góc trên sau ít phút. Bảng dưới đây vẫn đang tự động tính đầy đủ số tiền cố định của 6 người!
+            </p>
+          </div>
         </div>
       )}
 
@@ -175,7 +197,7 @@ export default function Dashboard() {
                   <td colSpan="8" className="py-12 text-center text-slate-400">
                     <div className="flex justify-center items-center gap-2">
                       <RefreshCw className="w-5 h-5 animate-spin text-emerald-400" />
-                      <span>Đang tính toán dữ liệu chốt sổ...</span>
+                      <span>Đang kết nối Backend server và tính toán...</span>
                     </div>
                   </td>
                 </tr>
