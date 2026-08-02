@@ -5,25 +5,16 @@ import axios from 'axios';
 const PRODUCTION_BACKEND_URL = 'https://tien-nha-904b-backend.onrender.com/api';
 
 export const getApiBaseUrl = () => {
-  // 1. Ưu tiên biến môi trường NEXT_PUBLIC_API_URL nếu có và không chứa localhost khi ở Production
+  // 1. Ưu tiên biến môi trường NEXT_PUBLIC_API_URL nếu có
   if (process.env.NEXT_PUBLIC_API_URL) {
     let envUrl = process.env.NEXT_PUBLIC_API_URL.trim().replace(/\/+$/, '');
     if (!envUrl.endsWith('/api')) envUrl = `${envUrl}/api`;
-
-    // Nếu đang chạy trên trang Vercel thật mà biến env lỡ dính localhost, chuyển sang Production URL
-    if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && envUrl.includes('localhost')) {
-      return PRODUCTION_BACKEND_URL;
-    }
     return envUrl;
   }
 
-  // 2. Tự động chuyển sang Render URL khi chạy trên môi trường Web (Vercel / Điện thoại / Máy tính khác)
-  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-    return PRODUCTION_BACKEND_URL;
-  }
-
-  // 3. Môi trường phát triển Localhost
-  return 'http://localhost:8000/api';
+  // 2. Mặc định LUÔN sử dụng Render Backend URL để đảm bảo kết nối thành công 
+  // (người dùng không phải nhập thủ công, ngay cả khi test ở localhost)
+  return PRODUCTION_BACKEND_URL;
 };
 
 // Khởi tạo Axios instance
