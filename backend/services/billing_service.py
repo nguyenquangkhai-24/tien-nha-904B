@@ -124,14 +124,13 @@ def calculate_member_bill(month: int, year: int) -> List[Dict[str, Any]]:
         # Số tiền người đó đã ứng mua đồ phát sinh trong tháng
         offset_amount = member_offsets.get(m_id, 0)
 
-        # CÔNG THỨC CHỐT SỔ CUỐI CÙNG (FINAL FORMULA)
+        # CÔNG THỨC CHỐT SỔ MỚI: Không trừ tiền ứng (theo yêu cầu của user)
         total_due = (
             fixed_rent
             + DEFAULT_SERVICE_FEE
             + parking_fee
             + utility_share_per_person
             + extra_share_per_person
-            - offset_amount
         )
 
         billing_summary.append({
@@ -142,7 +141,7 @@ def calculate_member_bill(month: int, year: int) -> List[Dict[str, Any]]:
             "parking_fee": parking_fee,
             "utility_share": utility_share_per_person,
             "extra_expense_share": extra_share_per_person,
-            "offset_amount": offset_amount,
+            "offset_amount": offset_amount, # Vẫn trả về phòng hờ nhưng không trừ vào total_due
             "total_due": total_due,
         })
 

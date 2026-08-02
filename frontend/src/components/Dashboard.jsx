@@ -187,14 +187,13 @@ export default function Dashboard() {
                 <th className="py-4 px-4 text-right">Gửi xe</th>
                 <th className="py-4 px-4 text-right">Điện + Nước (/6)</th>
                 <th className="py-4 px-4 text-right">Phát sinh (/6)</th>
-                <th className="py-4 px-4 text-right text-amber-400">Đã ứng (Trừ)</th>
                 <th className="py-4 px-5 text-right font-bold text-emerald-400">TỔNG ĐÓNG</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700/50">
               {loading ? (
                 <tr>
-                  <td colSpan="8" className="py-12 text-center text-slate-400">
+                  <td colSpan="7" className="py-12 text-center text-slate-400">
                     <div className="flex justify-center items-center gap-2">
                       <RefreshCw className="w-5 h-5 animate-spin text-emerald-400" />
                       <span>Đang kết nối Backend server và tính toán...</span>
@@ -203,7 +202,7 @@ export default function Dashboard() {
                 </tr>
               ) : billingData.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="py-12 text-center text-slate-400">
+                  <td colSpan="7" className="py-12 text-center text-slate-400">
                     Chưa có dữ liệu chốt sổ cho Tháng {month}/{year}.
                   </td>
                 </tr>
@@ -234,9 +233,6 @@ export default function Dashboard() {
                     <td className="py-4 px-4 text-right font-mono text-slate-300">
                       {formatVND(item.extra_expense_share)}
                     </td>
-                    <td className="py-4 px-4 text-right font-mono text-amber-400 font-semibold">
-                      -{formatVND(item.offset_amount)}
-                    </td>
                     <td className="py-4 px-5 text-right font-mono font-bold text-base text-emerald-400 bg-emerald-500/5">
                       {formatVND(item.total_due)}
                     </td>
@@ -251,7 +247,7 @@ export default function Dashboard() {
                     <Sparkles className="w-4 h-4" />
                     <span>TỔNG CỘNG THU:</span>
                   </td>
-                  <td colSpan="6"></td>
+                  <td colSpan="5"></td>
                   <td className="py-4 px-5 text-right text-lg text-emerald-400 font-mono">
                     {formatVND(grandTotal)}
                   </td>
