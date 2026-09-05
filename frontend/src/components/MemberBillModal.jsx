@@ -3,8 +3,10 @@
 import React, { useRef, useState } from 'react';
 import { X, Download, Copy, Check, Loader2, Sparkles, Building2 } from 'lucide-react';
 import * as htmlToImage from 'html-to-image';
+import useModalDialog from '../hooks/useModalDialog';
 
 export default function MemberBillModal({ memberData, month, year, onClose }) {
+  const dialogRef = useModalDialog(onClose);
   const receiptRef = useRef(null);
   const [downloading, setDownloading] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -30,7 +32,7 @@ export default function MemberBillModal({ memberData, month, year, onClose }) {
     }
   };
 
-  const handleCopyText = () => {
+  const handleCopyText = async () => {
     const text = `📌 HOÁ ĐƠN TIỀN NHÀ - PHÒNG 904B 🏠
 Tháng ${month}/${year}
 
@@ -45,18 +47,31 @@ Tháng ${month}/${year}
 
 (Vui lòng chuyển khoản đúng số tiền trên. Cảm ơn!)`;
 
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (_error) {
+      alert('Trình duyệt không cho phép sao chép. Vui lòng cấp quyền clipboard rồi thử lại.');
+    }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={onClose}>
-      <div className="relative max-w-md w-full max-h-[95vh] flex flex-col" onClick={e => e.stopPropagation()}>
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="member-bill-title"
+        tabIndex={-1}
+        className="relative max-w-md w-full max-h-[95vh] flex flex-col"
+        onClick={e => e.stopPropagation()}
+      >
         
         {/* Nút đóng */}
         <button 
           onClick={onClose}
+          aria-label="Đóng hóa đơn"
           className="absolute -top-12 right-0 md:-right-12 md:-top-0 p-2 text-slate-300 hover:text-white bg-slate-800/50 hover:bg-rose-500/80 rounded-full transition-all"
         >
           <X className="w-6 h-6" />
@@ -72,7 +87,7 @@ Tháng ${month}/${year}
             <div className="bg-gradient-to-br from-emerald-500 to-teal-600 p-5 md:p-6 text-center relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-full opacity-10 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent"></div>
               <Building2 className="w-8 h-8 md:w-10 md:h-10 mx-auto text-white mb-2 opacity-90" />
-              <h2 className="text-xl md:text-2xl font-black text-white tracking-wide uppercase shadow-sm">Phòng 904B</h2>
+              <h2 id="member-bill-title" className="text-xl md:text-2xl font-black text-white tracking-wide uppercase shadow-sm">Phòng 904B</h2>
               <p className="text-xs md:text-sm text-emerald-50 font-medium mt-1">Hoá Đơn Tiền Nhà - Tháng {month}/{year}</p>
             </div>
 

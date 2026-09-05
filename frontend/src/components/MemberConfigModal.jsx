@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { updateMemberOverride } from '../services/api';
 import { X, Save, CarFront, UserMinus, Info, Loader2 } from 'lucide-react';
+import useModalDialog from '../hooks/useModalDialog';
 
 export default function MemberConfigModal({ memberData, month, year, onClose, onUpdated }) {
+  const dialogRef = useModalDialog(onClose);
   const [parkingFee, setParkingFee] = useState(memberData.parking_fee || 173000);
   const [isExcluded, setIsExcluded] = useState(memberData.is_excluded || false);
   const [loading, setLoading] = useState(false);
@@ -36,16 +38,22 @@ export default function MemberConfigModal({ memberData, month, year, onClose, on
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={onClose}>
       <div 
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="member-config-title"
+        tabIndex={-1}
         className="relative max-w-md w-full bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl overflow-hidden flex flex-col" 
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
         <div className="bg-slate-800 p-5 md:p-6 border-b border-slate-700 flex justify-between items-center">
-          <h2 className="text-lg md:text-xl font-bold text-slate-100">
+          <h2 id="member-config-title" className="text-lg md:text-xl font-bold text-slate-100">
             Cài Đặt Thành Viên: <span className="text-emerald-400">{memberData.name}</span>
           </h2>
           <button 
             onClick={onClose}
+            aria-label="Đóng cấu hình thành viên"
             className="p-2 text-slate-400 hover:text-white bg-slate-800 hover:bg-rose-500/80 rounded-full transition-all"
           >
             <X className="w-5 h-5" />
@@ -72,6 +80,8 @@ export default function MemberConfigModal({ memberData, month, year, onClose, on
               inputMode="numeric"
               pattern="[0-9]*"
               value={parkingFee}
+              min="0"
+              max="10000000"
               onChange={(e) => setParkingFee(e.target.value)}
               className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 text-sm focus:outline-none focus:border-emerald-500 transition font-mono"
             />

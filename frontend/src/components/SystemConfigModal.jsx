@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { getMembers, addMember, updateMember, deleteMember, getSettings, updateSetting } from '../services/api';
 import { X, Users, Settings as SettingsIcon, Save, Plus, Trash2, Edit2, Loader2, DollarSign, KeyRound } from 'lucide-react';
+import useModalDialog from '../hooks/useModalDialog';
 
 export default function SystemConfigModal({ onClose, onUpdated }) {
+  const dialogRef = useModalDialog(onClose);
   const [activeTab, setActiveTab] = useState('members');
   const [loading, setLoading] = useState(false);
   
@@ -54,7 +56,6 @@ export default function SystemConfigModal({ onClose, onUpdated }) {
     }
     try {
       await updateSetting('admin_pin', adminPin);
-      localStorage.setItem('adminPin', adminPin); // Cập nhật local luôn
       alert('Đã đổi Mã PIN Quản Trị thành công!');
     } catch (err) {
       alert('Lỗi khi đổi mã PIN');
@@ -102,16 +103,22 @@ export default function SystemConfigModal({ onClose, onUpdated }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={onClose}>
       <div 
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="system-config-title"
+        tabIndex={-1}
         className="relative max-w-2xl w-full bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]" 
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
         <div className="bg-slate-800 p-5 md:p-6 border-b border-slate-700 flex justify-between items-center">
-          <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
+          <h2 id="system-config-title" className="text-xl font-bold text-slate-100 flex items-center gap-2">
             <SettingsIcon className="w-5 h-5 text-emerald-400" /> Quản Lý Hệ Thống
           </h2>
           <button 
             onClick={onClose}
+            aria-label="Đóng quản lý hệ thống"
             className="p-2 text-slate-400 hover:text-white bg-slate-800 hover:bg-rose-500/80 rounded-full transition-all"
           >
             <X className="w-5 h-5" />
@@ -259,14 +266,18 @@ export default function SystemConfigModal({ onClose, onUpdated }) {
                 <h3 className="text-slate-300 font-semibold mb-2 flex items-center gap-2">
                   <KeyRound className="w-4 h-4 text-rose-400" /> Mã PIN Quản Trị Viên
                 </h3>
-                <p className="text-sm text-slate-400 mb-4">Mã PIN dùng để đăng nhập quyền Chủ nhà. Mặc định là 123456.</p>
+                <p className="text-sm text-slate-400 mb-4">PIN mới gồm 6–12 chữ số. PIN không được hiển thị hoặc lưu trong trình duyệt.</p>
                 
                 <div className="flex gap-3">
                   <input 
-                    type="text"
-                    maxLength={10}
+                    type="password"
+                    inputMode="numeric"
+                    pattern="[0-9]{6,12}"
+                    minLength={6}
+                    maxLength={12}
+                    autoComplete="new-password"
                     value={adminPin}
-                    onChange={e => setAdminPin(e.target.value)}
+                    onChange={e => setAdminPin(e.target.value.replace(/\D/g, ''))}
                     placeholder="Nhập mã PIN mới..."
                     className="flex-1 bg-slate-950 border border-slate-600 rounded-xl px-4 py-3 text-slate-100 font-mono focus:border-rose-500 outline-none transition"
                   />

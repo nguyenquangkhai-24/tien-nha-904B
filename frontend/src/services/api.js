@@ -3,6 +3,15 @@ import axios from 'axios';
 // Domain Production Backend mặc định trên Render.com
 // Tự động nhận diện khi web chạy trên Vercel/Internet
 const PRODUCTION_BACKEND_URL = 'https://tien-nha-904b-backend.onrender.com/api';
+let adminPinInMemory = '';
+
+export const setAdminPin = (pin) => {
+  adminPinInMemory = String(pin || '');
+};
+
+export const clearAdminPin = () => {
+  adminPinInMemory = '';
+};
 
 export const getApiBaseUrl = () => {
   // 1. Ưu tiên biến môi trường NEXT_PUBLIC_API_URL nếu có
@@ -30,11 +39,8 @@ const api = axios.create({
 api.interceptors.request.use((config) => {
   config.baseURL = getApiBaseUrl();
   
-  if (['post', 'put', 'delete'].includes(config.method?.toLowerCase())) {
-    const pin = localStorage.getItem('adminPin');
-    if (pin) {
-      config.headers['X-Admin-Pin'] = pin;
-    }
+  if (!config.url?.endsWith('/auth/login') && !config.url?.endsWith('/settings/verify-pin')) {
+    if (adminPinInMemory) config.headers['X-Admin-Pin'] = adminPinInMemory;
   }
   return config;
 });
@@ -54,6 +60,7 @@ api.interceptors.response.use(
 
 export const verifyAdminPin = async (pin) => {
   const response = await api.post('/settings/verify-pin', { pin });
+  if (response.data?.success) setAdminPin(pin);
   return response.data;
 };
 

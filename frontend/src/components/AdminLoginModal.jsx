@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Lock, Unlock, X, Loader2, KeyRound } from 'lucide-react';
 import { verifyAdminPin } from '../services/api';
+import useModalDialog from '../hooks/useModalDialog';
 
 export default function AdminLoginModal({ onClose, onSuccess }) {
+  const dialogRef = useModalDialog(onClose);
   const [pin, setPin] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -17,7 +19,6 @@ export default function AdminLoginModal({ onClose, onSuccess }) {
     try {
       const res = await verifyAdminPin(pin);
       if (res.success) {
-        localStorage.setItem('adminPin', pin);
         onSuccess();
       } else {
         setError('Mã PIN không chính xác!');
@@ -39,11 +40,17 @@ export default function AdminLoginModal({ onClose, onSuccess }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={onClose}>
       <div 
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="admin-login-title"
+        tabIndex={-1}
         className={`relative w-full max-w-sm bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl overflow-hidden p-6 text-center transition-transform ${shake ? 'animate-[shake_0.5s_ease-in-out]' : ''}`}
         onClick={e => e.stopPropagation()}
       >
         <button 
           onClick={onClose}
+          aria-label="Đóng cửa sổ đăng nhập"
           className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white bg-slate-800 hover:bg-rose-500/80 rounded-full transition-all"
         >
           <X className="w-4 h-4" />
@@ -53,9 +60,9 @@ export default function AdminLoginModal({ onClose, onSuccess }) {
           <KeyRound className="w-8 h-8" />
         </div>
         
-        <h2 className="text-xl font-bold text-slate-100 mb-2">Đăng Nhập Quản Trị</h2>
+        <h2 id="admin-login-title" className="text-xl font-bold text-slate-100 mb-2">Mở Khóa Dữ Liệu</h2>
         <p className="text-sm text-slate-400 mb-6">
-          Bạn cần có quyền Chủ nhà để thay đổi dữ liệu hoặc chốt sổ tiền.
+          Nhập PIN truy cập để xem và thay đổi dữ liệu chốt sổ.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -63,10 +70,13 @@ export default function AdminLoginModal({ onClose, onSuccess }) {
             <input 
               type="password"
               inputMode="numeric"
+              pattern="[0-9]{6,12}"
+              autoComplete="current-password"
               autoFocus
-              maxLength={6}
+              minLength={6}
+              maxLength={12}
               value={pin}
-              onChange={e => setPin(e.target.value)}
+              onChange={e => setPin(e.target.value.replace(/\D/g, ''))}
               placeholder="Nhập mã PIN..."
               className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-center text-2xl tracking-widest text-slate-100 focus:border-rose-500 outline-none transition"
             />

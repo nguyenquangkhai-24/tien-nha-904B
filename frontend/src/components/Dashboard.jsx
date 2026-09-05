@@ -15,75 +15,35 @@ import {
   CheckCircle2,
   XCircle,
   Settings,
-  Wrench,
-  Lock,
-  Unlock
+  Wrench
 } from 'lucide-react';
 
 import MemberBillModal from './MemberBillModal';
 import MemberConfigModal from './MemberConfigModal';
 import AnalyticsChart from './AnalyticsChart';
 import SystemConfigModal from './SystemConfigModal';
-import AdminLoginModal from './AdminLoginModal';
-
-const FALLBACK_BILLING_DATA = [
-  { member_id: '1', name: 'Duy', fixed_rent: 3750000, service_fee: 133000, parking_fee: 173000, utility_share: 0, total_due: 4056000 },
-  { member_id: '2', name: 'Khải', fixed_rent: 3750000, service_fee: 133000, parking_fee: 173000, utility_share: 0, total_due: 4056000 },
-  { member_id: '3', name: 'P.Khang', fixed_rent: 3000000, service_fee: 133000, parking_fee: 173000, utility_share: 0, total_due: 3306000 },
-  { member_id: '4', name: 'N.Khang', fixed_rent: 3000000, service_fee: 133000, parking_fee: 173000, utility_share: 0, total_due: 3306000 },
-  { member_id: '5', name: 'Thịnh', fixed_rent: 2500000, service_fee: 133000, parking_fee: 173000, utility_share: 0, total_due: 2806000 },
-  { member_id: '6', name: 'Khoa', fixed_rent: 2000000, service_fee: 133000, parking_fee: 173000, utility_share: 0, total_due: 2306000 },
-];
-
-export default function Dashboard() {
-  const currentDate = new Date();
-  const [month, setMonth] = useState(currentDate.getMonth() + 1);
-  const [year, setYear] = useState(currentDate.getFullYear());
+export default function Dashboard({ month, year, onPeriodChange, refreshKey, onUpdated }) {
   const [billingData, setBillingData] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [isOfflineFallback, setIsOfflineFallback] = useState(false);
   const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
   const [configMember, setConfigMember] = useState(null);
   const [showSystemConfig, setShowSystemConfig] = useState(false);
-  const [showAdminLogin, setShowAdminLogin] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [togglingStatusId, setTogglingStatusId] = useState(null);
-
-  useEffect(() => {
-    // Kiem tra da co pin chua
-    if (localStorage.getItem('adminPin')) {
-      setIsAdmin(true);
-    }
-
-    const handleAuthError = () => {
-      setShowAdminLogin(true);
-      setIsAdmin(false);
-      localStorage.removeItem('adminPin');
-    };
-    
-    window.addEventListener('auth-error', handleAuthError);
-    return () => window.removeEventListener('auth-error', handleAuthError);
-  }, []);
 
   const fetchBillingData = async () => {
     setLoading(true);
     setError(null);
-    setIsOfflineFallback(false);
 
     try {
       const data = await getMonthlyBilling(month, year);
-      if (Array.isArray(data) && data.length > 0) {
-        setBillingData(data);
-      } else {
-        setBillingData(FALLBACK_BILLING_DATA);
-      }
+      if (!Array.isArray(data)) throw new Error('Dữ liệu billing không đúng định dạng.');
+      setBillingData(data);
     } catch (err) {
       console.error('Lỗi khi tải dữ liệu chốt sổ:', err);
-      setError('Chưa kết nối tới Backend server (có thể Render đang khởi động lại). Đang hiển thị bảng mặc định 6 thành viên.');
-      setIsOfflineFallback(true);
-      setBillingData(FALLBACK_BILLING_DATA);
+      setError('Không thể tải dữ liệu thật từ máy chủ. Không có dữ liệu mẫu nào được dùng thay thế.');
+      setBillingData([]);
     } finally {
       setLoading(false);
     }
@@ -91,17 +51,16 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchBillingData();
-  }, [month, year]);
+  }, [month, year, refreshKey]);
 
   const handleTogglePayment = async (memberId, currentStatus) => {
     setTogglingStatusId(memberId);
     try {
       const newStatus = !currentStatus;
-      await updatePaymentStatus(memberId, month, year, newStatus);
-      // Update local state without fetching all again
-      setBillingData(prevData => prevData.map(item => 
-        item.member_id === memberId ? { ...item, is_paid: newStatus } : item
-      ));
+      const current = billingData.find((item) => item.member_id === memberId);
+      await updatePaymentStatus(memberId, month, year, newStatus, current?.override_version || 0);
+      await fetchBillingData();
+      if (onUpdated) onUpdated();
     } catch (err) {
       console.error('Lỗi khi cập nhật trạng thái thu tiền:', err);
       alert('Không thể cập nhật trạng thái thu tiền. Vui lòng thử lại.');
@@ -114,7 +73,7 @@ export default function Dashboard() {
     return new Intl.NumberFormat('vi-VN').format(amount || 0) + 'đ';
   };
 
-  const handleCopyMessenger = () => {
+  const handleCopyMessenger = async () => {
     if (!billingData || billingData.length === 0) return;
 
     let text = `📌 CHỐT SỔ TIỀN NHÀ THÁNG ${month}/${year} - 904B 🏠\n`;
@@ -129,9 +88,13 @@ export default function Dashboard() {
     text += `----------------------------------\n`;
     text += `👉 TỔNG THU CẢ NHÀ: ${formatVND(totalAll)}\n`;
 
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch (_error) {
+      setError('Trình duyệt không cho phép sao chép. Hãy thử lại sau khi cấp quyền clipboard.');
+    }
   };
 
   const grandTotal = billingData.reduce((acc, curr) => acc + (curr.total_due || 0), 0);
@@ -163,7 +126,7 @@ export default function Dashboard() {
             <span className="text-xs text-slate-400 mr-2">Tháng:</span>
             <select
               value={month}
-              onChange={(e) => setMonth(Number(e.target.value))}
+              onChange={(e) => onPeriodChange({ month: Number(e.target.value), year })}
               className="bg-transparent text-slate-200 font-semibold focus:outline-none text-sm cursor-pointer"
             >
               {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
@@ -179,10 +142,10 @@ export default function Dashboard() {
             <span className="text-xs text-slate-400 mr-2">Năm:</span>
             <select
               value={year}
-              onChange={(e) => setYear(Number(e.target.value))}
+              onChange={(e) => onPeriodChange({ month, year: Number(e.target.value) })}
               className="bg-transparent text-slate-200 font-semibold focus:outline-none text-sm cursor-pointer"
             >
-              {[2024, 2025, 2026, 2027].map((y) => (
+              {Array.from({ length: 2100 - 2024 + 1 }, (_, index) => 2024 + index).map((y) => (
                 <option key={y} value={y} className="bg-slate-800 text-slate-200">
                   {y}
                 </option>
@@ -223,39 +186,16 @@ export default function Dashboard() {
             <span className="hidden sm:inline">Hệ thống</span>
           </button>
           
-          {/* Admin Auth Button */}
-          <button
-            onClick={() => {
-              if (isAdmin) {
-                localStorage.removeItem('adminPin');
-                setIsAdmin(false);
-                alert('Đã đăng xuất Admin!');
-              } else {
-                setShowAdminLogin(true);
-              }
-            }}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition active:scale-95 border ${
-              isAdmin 
-                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/30' 
-                : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-600'
-            }`}
-            title={isAdmin ? "Đăng xuất" : "Đăng nhập Admin"}
-          >
-            {isAdmin ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
-          </button>
         </div>
       </div>
 
       {/* Offline / Backend status alert */}
-      {isOfflineFallback && (
+      {error && (
         <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-start gap-3 text-amber-300 text-sm">
           <WifiOff className="w-5 h-5 flex-shrink-0 mt-0.5 text-amber-400" />
           <div>
             <p className="font-semibold">{error}</p>
-            <p className="text-xs text-amber-400/80 mt-1">
-              👉 <strong>Nguyên nhân:</strong> Nếu deploy Render bản miễn phí, server sẽ cần ~30 giây để thức dậy khi có truy cập mới.
-              Bạn có thể nhấn nút <strong>"Thử lại"</strong> ở góc trên sau ít phút. Bảng dưới đây vẫn đang tự động tính đầy đủ số tiền cố định của 6 người!
-            </p>
+            <p className="text-xs text-amber-400/80 mt-1">Nhấn “Thử lại”. Nếu lỗi tiếp diễn, không nhập dữ liệu cho đến khi kết nối được khôi phục.</p>
           </div>
         </div>
       )}
@@ -419,20 +359,8 @@ export default function Dashboard() {
         />
       )}
 
-      {/* Admin Login Modal */}
-      {showAdminLogin && (
-        <AdminLoginModal
-          onClose={() => setShowAdminLogin(false)}
-          onSuccess={() => {
-            setIsAdmin(true);
-            setShowAdminLogin(false);
-            fetchBillingData(); // Thử load lại
-          }}
-        />
-      )}
-
       {/* Analytics Chart */}
-      <AnalyticsChart currentYear={year} />
+      <AnalyticsChart year={year} onYearChange={(nextYear) => onPeriodChange({ month, year: nextYear })} />
     </div>
   );
 }

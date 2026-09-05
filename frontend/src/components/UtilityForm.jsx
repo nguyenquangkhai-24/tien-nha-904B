@@ -37,11 +37,8 @@ export default function UtilityForm({ month, year, onUpdated }) {
         water_amount: parsedWater,
       });
 
-      const totalUtil = parsedElec + parsedWater;
-      const sharePerPerson = Math.round(totalUtil / 6);
-
       setSuccessMsg(
-        `Đã lưu Tiền Điện (${parsedElec.toLocaleString('vi-VN')}đ) & Tiền Nước (${parsedWater.toLocaleString('vi-VN')}đ) Tháng ${month}/${year}. Mỗi người: ${sharePerPerson.toLocaleString('vi-VN')}đ/tháng.`
+        `Đã lưu Tiền Điện (${parsedElec.toLocaleString('vi-VN')}đ) & Tiền Nước (${parsedWater.toLocaleString('vi-VN')}đ) Tháng ${month}/${year}. Hóa đơn đã được tính lại theo số thành viên đang ở.`
       );
 
       if (onUpdated) {
@@ -61,7 +58,7 @@ export default function UtilityForm({ month, year, onUpdated }) {
   };
 
   return (
-    <div className="bg-slate-800/80 backdrop-blur-md p-4 md:p-6 rounded-2xl border border-slate-700/60 shadow-xl w-full h-full flex flex-col">
+    <div className="bg-slate-800/80 backdrop-blur-md p-4 md:p-6 rounded-2xl border border-slate-700/60 shadow-xl w-full flex flex-col">
       <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-700/60">
         <div className="flex items-center gap-3">
           <div className="p-2.5 bg-amber-500/10 rounded-xl border border-amber-500/20 text-amber-400">
@@ -75,7 +72,7 @@ export default function UtilityForm({ month, year, onUpdated }) {
               </span>
             </h3>
             <p className="text-xs text-slate-400">
-              Tổng tiền điện nước sẽ tự động cộng lại và chia 6 cho mỗi thành viên
+              Tổng tiền điện nước được chia cho số thành viên đang ở trong tháng
             </p>
           </div>
         </div>
@@ -111,6 +108,7 @@ export default function UtilityForm({ month, year, onUpdated }) {
               value={electricity}
               onChange={(e) => setElectricity(e.target.value)}
               min="0"
+              max="100000000"
               step="1000"
               className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-slate-100 text-sm placeholder-slate-500 focus:outline-none focus:border-blue-500 transition font-mono"
             />
@@ -130,6 +128,7 @@ export default function UtilityForm({ month, year, onUpdated }) {
               value={water}
               onChange={(e) => setWater(e.target.value)}
               min="0"
+              max="100000000"
               step="1000"
               className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-slate-100 text-sm placeholder-slate-500 focus:outline-none focus:border-sky-500 transition font-mono"
             />

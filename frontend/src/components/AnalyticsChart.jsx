@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getYearlyStats } from '../services/api';
 import { BarChart3, ChevronLeft, ChevronRight, Zap, Droplet, Loader2 } from 'lucide-react';
 
-export default function AnalyticsChart({ currentYear }) {
-  const [year, setYear] = useState(currentYear || new Date().getFullYear());
+export default function AnalyticsChart({ year, onYearChange }) {
   const [stats, setStats] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -54,7 +53,8 @@ export default function AnalyticsChart({ currentYear }) {
 
         <div className="flex items-center gap-4 bg-slate-950 p-1.5 rounded-xl border border-slate-800 w-fit">
           <button 
-            onClick={() => setYear(y => y - 1)}
+            onClick={() => onYearChange(year - 1)}
+            aria-label="Xem thống kê năm trước"
             className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition"
           >
             <ChevronLeft className="w-5 h-5" />
@@ -63,7 +63,8 @@ export default function AnalyticsChart({ currentYear }) {
             {year}
           </span>
           <button 
-            onClick={() => setYear(y => y + 1)}
+            onClick={() => onYearChange(year + 1)}
+            aria-label="Xem thống kê năm sau"
             className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition"
           >
             <ChevronRight className="w-5 h-5" />
