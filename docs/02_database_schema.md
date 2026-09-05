@@ -1,28 +1,60 @@
 # CẤU TRÚC DATABASE
 
-Bao gồm 4 bảng (Tables) cho cơ sở dữ liệu quan hệ (ví dụ: PostgreSQL/Supabase):
+Schema production dùng PostgreSQL/Supabase. Mọi bảng trong `public` phải bật RLS; `anon` và `authenticated` không có quyền trực tiếp. Backend dùng secret/service-role key lưu trong secret manager.
 
-1. **Members:** Lưu thông tin cố định.
-   - `id`: UUID (Primary Key)
-   - `name`: String (Duy, Khải, P.Khang, N.Khang, Thịnh, Khoa)
-   - `fixed_rent`: Integer (Tiền phòng)
+## Bảng đang hoạt động
 
-2. **Monthly_Cycles:** Lưu hóa đơn chung hàng tháng.
-   - `id`: UUID
-   - `month`: Integer (1-12)
-   - `year`: Integer
-   - `electricity_amount`: Integer (Mặc định 0)
-   - `water_amount`: Integer (Mặc định 0)
+### `members`
 
-3. **Extra_Expenses:** Lưu đồ mua chung.
-   - `id`: UUID
-   - `cycle_id`: UUID (Foreign Key -> Monthly_Cycles.id)
-   - `buyer_id`: UUID (Foreign Key -> Members.id)
-   - `item_name`: String
-   - `amount`: Integer
+- `id UUID PRIMARY KEY`
+- `name TEXT NOT NULL`, dài 1–80, duy nhất không phân biệt hoa/thường
+- `fixed_rent BIGINT NOT NULL`, 0–100.000.000
+- `created_at`, `updated_at`
 
-4. **Monthly_Overrides:** Lưu các tùy chỉnh riêng biệt theo tháng (ví dụ tiền xe tháng 8).
-   - `id`: UUID
-   - `cycle_id`: UUID (Foreign Key -> Monthly_Cycles.id)
-   - `member_id`: UUID (Foreign Key -> Members.id)
-   - `parking_fee`: Integer (Nếu Null, lấy mặc định 173.000đ)
+### `monthly_cycles`
+
+- `id UUID PRIMARY KEY`
+- `month INTEGER`, 1–12
+- `year INTEGER`, 2024–2100
+- `electricity_amount BIGINT`, 0–100.000.000
+- `water_amount BIGINT`, 0–100.000.000
+- `version INTEGER NOT NULL DEFAULT 1`
+- `created_at`, `updated_at`
+- `UNIQUE(month, year)`
+
+### `monthly_overrides`
+
+- `id UUID PRIMARY KEY`
+- `cycle_id UUID REFERENCES monthly_cycles(id) ON DELETE CASCADE`
+- `member_id UUID REFERENCES members(id) ON DELETE CASCADE`
+- `parking_fee BIGINT`, 0–10.000.000
+- `is_paid BOOLEAN NOT NULL DEFAULT false`
+- `is_excluded BOOLEAN NOT NULL DEFAULT false`
+- `version INTEGER NOT NULL DEFAULT 1`
+- `created_at`, `updated_at`
+- `UNIQUE(cycle_id, member_id)`
+
+### `global_settings`
+
+- `key TEXT PRIMARY KEY`, chỉ nhận `service_fee`, `admin_pin_hash`
+- `value TEXT NOT NULL`
+- `updated_at`
+
+### `mutation_receipts`
+
+- `idempotency_key UUID PRIMARY KEY`
+- `operation TEXT NOT NULL`
+- `request_hash TEXT NOT NULL`
+- `response JSONB NOT NULL`
+- `created_at`; dữ liệu cũ hơn 30 ngày có thể được dọn bằng tác vụ bảo trì.
+
+## Dữ liệu legacy
+
+`extra_expenses` không còn thuộc luồng nghiệp vụ. Migration không xóa bảng để tránh mất dữ liệu lịch sử, nhưng thu hồi quyền `anon/authenticated`, bật RLS không policy và đổi comment thành `LEGACY_DISABLED`.
+
+## Hàm database
+
+- `update_monthly_utilities_v2`: transaction, kiểm tra version, idempotency.
+- `update_member_override_v2`: chỉ cập nhật phí xe/vắng mặt, giữ nguyên trạng thái thanh toán.
+- `update_payment_status_v2`: chỉ cập nhật trạng thái, giữ nguyên phí xe/vắng mặt.
+- Các hàm là `SECURITY DEFINER`, đặt `search_path` cố định, thu hồi `EXECUTE` khỏi `PUBLIC/anon/authenticated` và chỉ cấp cho `service_role`.
