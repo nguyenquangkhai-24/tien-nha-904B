@@ -9,7 +9,10 @@ Schema production dùng PostgreSQL/Supabase. Mọi bảng trong `public` phải 
 - `id UUID PRIMARY KEY`
 - `name TEXT NOT NULL`, dài 1–80, duy nhất không phân biệt hoa/thường
 - `fixed_rent BIGINT NOT NULL`, 0–100.000.000
+- `version INTEGER NOT NULL DEFAULT 1`
+- `archived_at`: các dòng trùng cũ được lưu trữ, không tham gia tính toán.
 - `created_at`, `updated_at`
+- Chỉ một thành viên chưa lưu trữ được dùng mỗi tên, không phân biệt hoa/thường.
 
 ### `monthly_cycles`
 
@@ -36,8 +39,9 @@ Schema production dùng PostgreSQL/Supabase. Mọi bảng trong `public` phải 
 
 ### `global_settings`
 
-- `key TEXT PRIMARY KEY`, chỉ nhận `service_fee`, `admin_pin_hash`
+- `key TEXT PRIMARY KEY`, nhận `service_fee`, `admin_pin_hash`; `admin_pin` chỉ được giữ tạm để nâng cấp một lần.
 - `value TEXT NOT NULL`
+- `version INTEGER NOT NULL DEFAULT 1`
 - `updated_at`
 
 ### `mutation_receipts`
@@ -50,7 +54,7 @@ Schema production dùng PostgreSQL/Supabase. Mọi bảng trong `public` phải 
 
 ## Dữ liệu legacy
 
-`extra_expenses` không còn thuộc luồng nghiệp vụ. Migration không xóa bảng để tránh mất dữ liệu lịch sử, nhưng thu hồi quyền `anon/authenticated`, bật RLS không policy và đổi comment thành `LEGACY_DISABLED`.
+`extra_expenses` không còn thuộc luồng nghiệp vụ. Migration không xóa bảng để tránh mất dữ liệu lịch sử, nhưng thu hồi quyền `anon/authenticated`, bật RLS không policy và đổi comment thành `LEGACY_DISABLED`. Migration production cũng chọn 6 thành viên chuẩn đang được dữ liệu tháng tham chiếu và lưu trữ 36 dòng seed trùng thay vì xóa vĩnh viễn.
 
 ## Hàm database
 

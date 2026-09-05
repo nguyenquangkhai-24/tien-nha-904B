@@ -1,249 +1,170 @@
-from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel
-from typing import Optional
+from typing import Any
 from uuid import UUID
+
+from fastapi import APIRouter, HTTPException, Path, status
+from pydantic import BaseModel, Field
+
 from backend.database import supabase
-from backend.services.billing_service import calculate_member_bill
+from backend.services.billing_service import BillingDataError, calculate_member_bill
+
 
 router = APIRouter(prefix="/api", tags=["Monthly & Billing"])
 
 
-class UpdateMonthlyRequest(BaseModel):
-    electricity_amount: int = 0
-    water_amount: int = 0
+class MutationBase(BaseModel):
+    expected_version: int = Field(ge=0)
+    idempotency_key: UUID
 
 
-class UpdateOverrideRequest(BaseModel):
+class UpdateMonthlyRequest(MutationBase):
+    electricity_amount: int = Field(ge=0, le=100_000_000)
+    water_amount: int = Field(ge=0, le=100_000_000)
+
+
+class UpdateOverrideRequest(MutationBase):
     member_id: UUID
-    month: int
-    year: int
-    parking_fee: int
-    is_excluded: Optional[bool] = False
+    month: int = Field(ge=1, le=12)
+    year: int = Field(ge=2024, le=2100)
+    parking_fee: int = Field(ge=0, le=10_000_000)
+    is_excluded: bool = False
 
-class UpdateStatusRequest(BaseModel):
+
+class UpdateStatusRequest(MutationBase):
     member_id: UUID
-    month: int
-    year: int
+    month: int = Field(ge=1, le=12)
+    year: int = Field(ge=2024, le=2100)
     is_paid: bool
 
 
-@router.get("/billing/{month}/{year}")
-def get_monthly_billing(month: int, year: int):
-    """
-    1. GET /api/billing/:month/:year
-    Lấy toàn bộ số liệu chốt sổ của tháng theo đúng CÔNG THỨC CHỐT SỔ TỔNG ở 01_business_logic.md.
-    """
-    if month < 1 or month > 12:
+def _rpc(name: str, params: dict[str, Any]):
+    try:
+        result = supabase.rpc(name, params).execute()
+    except Exception as exc:
+        message = str(exc).upper()
+        if "VERSION_CONFLICT" in message:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Dữ liệu vừa được người khác cập nhật. Hãy tải lại trước khi lưu.",
+            ) from exc
+        if "IDEMPOTENCY_KEY_REUSED" in message:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Khóa chống ghi trùng đã được dùng cho một request khác.",
+            ) from exc
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Tháng không hợp lệ (phải từ 1 đến 12).",
-        )
-    return calculate_member_bill(month, year)
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database tạm thời không sẵn sàng.",
+        ) from exc
+    data = result.data
+    if isinstance(data, list) and len(data) == 1:
+        return data[0]
+    return data
+
+
+@router.get("/health")
+def health():
+    return {"status": "ok", "service": "tien-nha-904b-api", "version": "2.0.0"}
+
+
+@router.get("/health/database")
+def database_health():
+    try:
+        result = supabase.table("members").select("id", count="exact").limit(1).execute()
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database tạm thời không sẵn sàng.",
+        ) from exc
+    return {"status": "ok", "member_count": result.count}
+
+
+@router.get("/billing/{month}/{year}")
+def get_monthly_billing(
+    month: int = Path(ge=1, le=12),
+    year: int = Path(ge=2024, le=2100),
+):
+    try:
+        return calculate_member_bill(month, year)
+    except BillingDataError as exc:
+        code = status.HTTP_409_CONFLICT if "tất cả thành viên" in str(exc) else status.HTTP_503_SERVICE_UNAVAILABLE
+        raise HTTPException(status_code=code, detail=str(exc)) from exc
 
 
 @router.put("/monthly/{month}/{year}")
-def update_monthly_utilities(month: int, year: int, payload: UpdateMonthlyRequest):
-    """
-    2. PUT /api/monthly/:month/:year
-    Cập nhật tổng tiền điện và tiền nước hàng tháng.
-    """
-    if month < 1 or month > 12:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Tháng không hợp lệ (phải từ 1 đến 12).",
-        )
-
-    try:
-        # Sử dụng UPSERT để tránh lỗi duplicate key khi 2 người cùng thao tác
-        upsert_res = (
-            supabase.table("monthly_cycles")
-            .upsert(
-                {
-                    "month": month,
-                    "year": year,
-                    "electricity_amount": payload.electricity_amount,
-                    "water_amount": payload.water_amount,
-                },
-                on_conflict="month,year"
-            )
-            .execute()
-        )
-        return {
-            "message": "Cập nhật tiền điện nước thành công.",
-            "data": upsert_res.data,
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Lỗi cập nhật chu kỳ (Supabase): {str(e)}")
+def update_monthly_utilities(
+    payload: UpdateMonthlyRequest,
+    month: int = Path(ge=1, le=12),
+    year: int = Path(ge=2024, le=2100),
+):
+    data = _rpc("update_monthly_utilities_v2", {
+        "p_month": month,
+        "p_year": year,
+        "p_electricity": payload.electricity_amount,
+        "p_water": payload.water_amount,
+        "p_expected_version": payload.expected_version,
+        "p_idempotency_key": str(payload.idempotency_key),
+    })
+    return {"message": "Cập nhật tiền điện nước thành công.", "data": data}
 
 
 @router.put("/overrides")
 def update_parking_override(payload: UpdateOverrideRequest):
-    """
-    5. PUT /api/overrides
-    Cập nhật tiền gửi xe cho một người trong một tháng cụ thể.
-    """
-    try:
-        # Lấy cycle_id (UPSERT để đảm bảo luôn tồn tại và không dính lỗi Concurrency)
-        cycle_res = (
-            supabase.table("monthly_cycles")
-            .upsert(
-                {
-                    "month": payload.month,
-                    "year": payload.year
-                },
-                on_conflict="month,year",
-                ignore_duplicates=False
-            )
-            .execute()
-        )
-        cycle_id = cycle_res.data[0]["id"]
-    except Exception as e:
-        # Nếu fail (do config Supabase API key version cũ), fallback sang select -> insert -> select
-        cycle_check = supabase.table("monthly_cycles").select("*").eq("month", payload.month).eq("year", payload.year).execute()
-        if cycle_check and cycle_check.data:
-            cycle_id = cycle_check.data[0]["id"]
-        else:
-            try:
-                new_cycle = supabase.table("monthly_cycles").insert({"month": payload.month, "year": payload.year}).execute()
-                cycle_id = new_cycle.data[0]["id"]
-            except Exception as e2:
-                # Race condition, select lại 1 lần nữa
-                cycle_check2 = supabase.table("monthly_cycles").select("*").eq("month", payload.month).eq("year", payload.year).execute()
-                cycle_id = cycle_check2.data[0]["id"]
+    data = _rpc("update_member_override_v2", {
+        "p_member_id": str(payload.member_id),
+        "p_month": payload.month,
+        "p_year": payload.year,
+        "p_parking_fee": payload.parking_fee,
+        "p_is_excluded": payload.is_excluded,
+        "p_expected_version": payload.expected_version,
+        "p_idempotency_key": str(payload.idempotency_key),
+    })
+    return {"message": "Cập nhật tùy chỉnh thành viên thành công.", "data": data}
 
-    try:
-        from backend.services.billing_service import DEFAULT_PARKING_FEE
-        
-        # Vì UPSERT cần full config, ta fetch dữ liệu cũ (nếu có)
-        existing_ov = supabase.table("monthly_overrides").select("*").eq("cycle_id", cycle_id).eq("member_id", str(payload.member_id)).execute()
-        
-        current_paid = False
-        if existing_ov and existing_ov.data:
-            current_paid = existing_ov.data[0].get("is_paid", False)
-
-        # UPSERT ghi đè phí và trạng thái nghỉ phép
-        result = (
-            supabase.table("monthly_overrides")
-            .upsert(
-                {
-                    "cycle_id": cycle_id,
-                    "member_id": str(payload.member_id),
-                    "parking_fee": payload.parking_fee,
-                    "is_excluded": payload.is_excluded,
-                    "is_paid": current_paid,
-                },
-                on_conflict="cycle_id,member_id"
-            )
-            .execute()
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Lỗi ghi đè phí (Supabase): {str(e)}")
-
-    return {"message": "Cập nhật ghi đè tiền gửi xe thành công.", "data": result.data}
 
 @router.put("/overrides/status")
 def update_payment_status(payload: UpdateStatusRequest):
-    """
-    6. PUT /api/overrides/status
-    Cập nhật trạng thái đã thu tiền (is_paid) cho một người trong tháng.
-    """
-    try:
-        # Lấy cycle_id (Fallback check để an toàn)
-        cycle_res = (
-            supabase.table("monthly_cycles")
-            .upsert(
-                {
-                    "month": payload.month,
-                    "year": payload.year
-                },
-                on_conflict="month,year",
-                ignore_duplicates=False
-            )
-            .execute()
-        )
-        cycle_id = cycle_res.data[0]["id"]
-    except Exception as e:
-        cycle_check = supabase.table("monthly_cycles").select("*").eq("month", payload.month).eq("year", payload.year).execute()
-        if cycle_check and cycle_check.data:
-            cycle_id = cycle_check.data[0]["id"]
-        else:
-            try:
-                new_cycle = supabase.table("monthly_cycles").insert({"month": payload.month, "year": payload.year}).execute()
-                cycle_id = new_cycle.data[0]["id"]
-            except Exception as e2:
-                cycle_check2 = supabase.table("monthly_cycles").select("*").eq("month", payload.month).eq("year", payload.year).execute()
-                cycle_id = cycle_check2.data[0]["id"]
+    data = _rpc("update_payment_status_v2", {
+        "p_member_id": str(payload.member_id),
+        "p_month": payload.month,
+        "p_year": payload.year,
+        "p_is_paid": payload.is_paid,
+        "p_expected_version": payload.expected_version,
+        "p_idempotency_key": str(payload.idempotency_key),
+    })
+    return {"message": "Cập nhật trạng thái thu tiền thành công.", "data": data}
 
-    try:
-        from backend.services.billing_service import DEFAULT_PARKING_FEE
-        
-        # Vì UPSERT cần full config, ta fetch dữ liệu cũ (nếu có) để không đè parking_fee
-        existing_ov = supabase.table("monthly_overrides").select("*").eq("cycle_id", cycle_id).eq("member_id", str(payload.member_id)).execute()
-        
-        current_parking = DEFAULT_PARKING_FEE
-        current_excluded = False
-        if existing_ov and existing_ov.data:
-            current_parking = existing_ov.data[0].get("parking_fee", DEFAULT_PARKING_FEE)
-            current_excluded = existing_ov.data[0].get("is_excluded", False)
-            
-        result = (
-            supabase.table("monthly_overrides")
-            .upsert(
-                {
-                    "cycle_id": cycle_id,
-                    "member_id": str(payload.member_id),
-                    "parking_fee": current_parking,
-                    "is_paid": payload.is_paid,
-                    "is_excluded": current_excluded,
-                },
-                on_conflict="cycle_id,member_id"
-            )
-            .execute()
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Lỗi cập nhật trạng thái thu tiền: {str(e)}")
-
-    return {"message": "Cập nhật trạng thái thu tiền thành công.", "data": result.data}
 
 @router.get("/yearly/{year}")
-def get_yearly_stats(year: int):
-    """
-    7. GET /api/yearly/:year
-    Lấy thống kê điện và nước của toàn bộ 12 tháng trong năm.
-    """
+def get_yearly_stats(year: int = Path(ge=2024, le=2100)):
     try:
-        # Fetch tất cả cycles trong năm
-        cycles_res = supabase.table("monthly_cycles").select("*").eq("year", year).execute()
-        cycles = cycles_res.data if cycles_res and cycles_res.data else []
+        response = (
+            supabase.table("monthly_cycles")
+            .select("month,electricity_amount,water_amount")
+            .eq("year", year)
+            .execute()
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Không thể tải thống kê năm.",
+        ) from exc
 
-        # Nếu không có cycle nào, trả về mảng rỗng
-        if not cycles:
-            return []
-
-        # Build mảng kết quả 12 tháng (1-12)
-        # Để đảm bảo đủ 12 tháng (kể cả chưa có), ta có thể sinh ra array 1-12
-        stats = []
-        cycle_map = {c["month"]: c for c in cycles}
-
-        for m in range(1, 13):
-            if m in cycle_map:
-                c = cycle_map[m]
-                elec = c.get("electricity_amount", 0)
-                water = c.get("water_amount", 0)
-                stats.append({
-                    "month": m,
-                    "electricity": elec,
-                    "water": water,
-                    "total": elec + water
-                })
-            else:
-                stats.append({
-                    "month": m,
-                    "electricity": 0,
-                    "water": 0,
-                    "total": 0
-                })
-
-        return stats
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Lỗi lấy thống kê năm: {str(e)}")
+    cycle_map = {int(row["month"]): row for row in (response.data or [])}
+    stats = []
+    for month in range(1, 13):
+        row = cycle_map.get(month, {})
+        try:
+            electricity = int(row.get("electricity_amount", 0) or 0)
+            water = int(row.get("water_amount", 0) or 0)
+        except (TypeError, ValueError) as exc:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Dữ liệu thống kê không hợp lệ.",
+            ) from exc
+        stats.append({
+            "month": month,
+            "electricity": electricity,
+            "water": water,
+            "total": electricity + water,
+        })
+    return stats

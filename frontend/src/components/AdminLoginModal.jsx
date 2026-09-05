@@ -25,7 +25,13 @@ export default function AdminLoginModal({ onClose, onSuccess }) {
         triggerShake();
       }
     } catch (err) {
-      setError('Lỗi kết nối máy chủ.');
+      if (err.response?.status === 429) {
+        setError('Bạn đã nhập sai quá nhiều lần. Vui lòng thử lại sau.');
+      } else if (err.response?.data?.detail) {
+        setError(err.response.data.detail);
+      } else {
+        setError('Không thể kết nối máy chủ.');
+      }
       triggerShake();
     } finally {
       setLoading(false);

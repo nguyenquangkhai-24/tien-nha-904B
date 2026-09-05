@@ -1,12 +1,12 @@
 # REST API CONTRACT
 
-Base path: `/api`. Trừ `/api/health` và `/api/auth/login`, mọi endpoint yêu cầu header `X-Admin-Pin`. PIN chỉ được giữ trong bộ nhớ của tab và gửi qua HTTPS.
+Base path: `/api`. Trừ `/api/health` và `/api/auth/login`, mọi endpoint yêu cầu `Authorization: Bearer <session_token>`. PIN chỉ được gửi một lần qua HTTPS để đăng nhập; token ký số có hạn 8 giờ chỉ nằm trong bộ nhớ tab.
 
 ## Authentication
 
-- `POST /api/auth/login` — kiểm tra PIN, rate-limit theo IP; PIN plaintext cũ được nâng cấp sang PBKDF2 khi đăng nhập thành công.
-- `POST /api/auth/logout` — xóa PIN phía client; server không tạo cookie/session.
-- `PUT /api/settings/admin-pin` — đổi PIN; yêu cầu PIN hiện tại qua middleware.
+- `POST /api/auth/login` — kiểm tra PIN, rate-limit theo IP; PIN plaintext cũ được nâng cấp sang PBKDF2 khi đăng nhập thành công; trả token ký số ngắn hạn.
+- Đăng xuất xóa token phía client; server không tạo cookie.
+- `PUT /api/settings/admin-pin` — đổi PIN với `expected_version`; mọi token cũ tự mất hiệu lực.
 
 ## Read
 
@@ -25,15 +25,15 @@ Mọi mutation tài chính gửi `idempotency_key` UUID. Cập nhật bản ghi 
 - `PUT /api/overrides` — `{member_id, month, year, parking_fee, is_excluded, expected_version, idempotency_key}`
 - `PUT /api/overrides/status` — `{member_id, month, year, is_paid, expected_version, idempotency_key}`
 - `POST /api/members`
-- `PUT /api/members/{member_id}`
-- `DELETE /api/members/{member_id}` — trả 409 nếu thành viên đã có dữ liệu liên quan.
-- `PUT /api/settings/service-fee`
-- `PUT /api/settings/admin-pin`
+- `PUT /api/members/{member_id}` — gửi `expected_version`.
+- `DELETE /api/members/{member_id}?expected_version=N` — trả 409 nếu version cũ hoặc thành viên đã có dữ liệu liên quan.
+- `PUT /api/settings/service-fee` — gửi `expected_version`.
+- `PUT /api/settings/admin-pin` — gửi `expected_version`.
 
 ## Quy ước lỗi
 
 - `400`: request sai cấu trúc nghiệp vụ.
-- `401`: thiếu/sai PIN.
+- `401`: thiếu/sai/hết hạn phiên.
 - `409`: version cũ, tên trùng hoặc xung đột dữ liệu.
 - `422`: Pydantic từ chối range/type/size.
 - `429`: quá nhiều lần đăng nhập sai.

@@ -5,7 +5,7 @@ import useModalDialog from '../hooks/useModalDialog';
 
 export default function MemberConfigModal({ memberData, month, year, onClose, onUpdated }) {
   const dialogRef = useModalDialog(onClose);
-  const [parkingFee, setParkingFee] = useState(memberData.parking_fee || 173000);
+  const [parkingFee, setParkingFee] = useState(memberData.parking_fee ?? 173000);
   const [isExcluded, setIsExcluded] = useState(memberData.is_excluded || false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -16,12 +16,18 @@ export default function MemberConfigModal({ memberData, month, year, onClose, on
     setLoading(true);
 
     try {
+      const parsedParkingFee = Number(parkingFee);
+      if (!Number.isInteger(parsedParkingFee) || parsedParkingFee < 0 || parsedParkingFee > 10000000) {
+        setError('Phí gửi xe phải từ 0 đến 10.000.000đ.');
+        return;
+      }
       await updateMemberOverride({
         member_id: memberData.member_id,
         month,
         year,
-        parking_fee: parseInt(parkingFee, 10),
+        parking_fee: parsedParkingFee,
         is_excluded: isExcluded,
+        expected_version: memberData.override_version || 0,
       });
       if (onUpdated) {
         onUpdated(); // Báo cho Dashboard biết để tải lại dữ liệu

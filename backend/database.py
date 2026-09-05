@@ -1,21 +1,23 @@
 import os
-from supabase import create_client, Client
+
 from dotenv import load_dotenv
+from supabase import Client, create_client
+
 
 load_dotenv()
 
-SUPABASE_URL: str = os.getenv("SUPABASE_URL", "").strip()
-SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "").strip()
 
-# Tự động dọn dẹp URL nếu người dùng vô tình copy thừa /rest/v1 từ dashboard
-if SUPABASE_URL.endswith('/'):
-    SUPABASE_URL = SUPABASE_URL[:-1]
-if SUPABASE_URL.endswith('/rest/v1'):
-    SUPABASE_URL = SUPABASE_URL[:-8] # cắt bỏ /rest/v1
-if SUPABASE_URL.endswith('/'):
-    SUPABASE_URL = SUPABASE_URL[:-1]
+def _normalized_supabase_url() -> str:
+    url = os.getenv("SUPABASE_URL", "").strip().rstrip("/")
+    if url.endswith("/rest/v1"):
+        url = url[:-8].rstrip("/")
+    return url
+
+
+SUPABASE_URL = _normalized_supabase_url()
+SUPABASE_KEY = os.getenv("SUPABASE_KEY", "").strip()
 
 if not SUPABASE_URL or not SUPABASE_KEY:
-    print("Warning: SUPABASE_URL or SUPABASE_KEY environment variables are missing.")
+    raise RuntimeError("SUPABASE_URL và SUPABASE_KEY là bắt buộc.")
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)

@@ -43,7 +43,7 @@ Production gồm GitHub → Render (FastAPI) → Supabase và GitHub → Vercel 
 ## Cổng 6 — Smoke test production
 
 1. Trang tải không có hydration/runtime error.
-2. Khi chưa đăng nhập, API dữ liệu trả 401 và UI mở modal truy cập.
+2. Khi chưa đăng nhập, API dữ liệu trả 401 và UI mở modal truy cập; không có PIN trong các request sau login.
 3. Đăng nhập; tải billing, members, settings và yearly thành công.
 4. Kiểm tra update điện/nước; gửi lại cùng idempotency key không ghi hai lần.
 5. Hai cập nhật dùng cùng version: một thành công, một trả 409.

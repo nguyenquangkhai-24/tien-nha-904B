@@ -22,8 +22,15 @@ class Query:
     def select(self, *_args, **_kwargs):
         return self
 
+    def order(self, *_args, **_kwargs):
+        return self
+
     def eq(self, key, value):
         self.filters[key] = value
+        return self
+
+    def is_(self, key, value):
+        self.filters[key] = None if value == "null" else value
         return self
 
     def execute(self):
@@ -46,7 +53,7 @@ class FakeSupabase:
             ],
             "monthly_cycles": [{
                 "id": "c1", "month": 9, "year": 2026,
-                "electricity_amount": 300000, "water_amount": 100000,
+                "electricity_amount": 300000, "water_amount": 100000, "version": 4,
             }],
             "monthly_overrides": [],
         }
@@ -66,6 +73,23 @@ class BillingWithoutExpensesTests(unittest.TestCase):
         self.assertEqual(result[0]["total_due"], 1506000)
         self.assertNotIn("extra_expense_share", result[0])
         self.assertNotIn("offset_amount", result[0])
+
+    def test_excluded_member_only_pays_rent_and_service_fee(self):
+        fake = FakeSupabase()
+        fake.rows["global_settings"][0]["value"] = "133000"
+        fake.rows["monthly_overrides"] = [{
+            "member_id": "m2", "parking_fee": 999000,
+            "is_paid": False, "is_excluded": True, "version": 2,
+            "cycle_id": "c1",
+        }]
+        with patch.object(billing_service, "supabase", fake):
+            result = billing_service.calculate_member_bill(9, 2026)
+
+        self.assertEqual(result[0]["utility_share"], 400000)
+        self.assertEqual(result[1]["parking_fee"], 0)
+        self.assertEqual(result[1]["utility_share"], 0)
+        self.assertEqual(result[1]["total_due"], 2133000)
+        self.assertEqual(result[1]["override_version"], 2)
 
 
 if __name__ == "__main__":

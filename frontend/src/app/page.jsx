@@ -5,7 +5,7 @@ import { Lock, LogOut } from 'lucide-react';
 import Dashboard from '../components/Dashboard';
 import UtilityForm from '../components/UtilityForm';
 import AdminLoginModal from '../components/AdminLoginModal';
-import { clearAdminPin } from '../services/api';
+import { clearAdminSession } from '../services/api';
 
 export default function Home() {
   const [period, setPeriod] = useState(null);
@@ -18,7 +18,7 @@ export default function Home() {
     setPeriod({ month: now.getMonth() + 1, year: now.getFullYear() });
 
     const handleAuthError = () => {
-      clearAdminPin();
+      clearAdminSession();
       setIsAuthenticated(false);
       setShowLogin(true);
     };
@@ -29,7 +29,7 @@ export default function Home() {
   const handleDataUpdated = () => setRefreshKey((value) => value + 1);
 
   const handleLogout = () => {
-    clearAdminPin();
+    clearAdminSession();
     setIsAuthenticated(false);
     setShowLogin(true);
   };

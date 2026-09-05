@@ -1,63 +1,112 @@
-from fastapi import FastAPI, Request, status
+import logging
+import uuid
+
+from fastapi import FastAPI, HTTPException, Request, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+
+from backend.config import IS_PRODUCTION, get_allowed_origins
 from backend.routers import members, monthly, settings
-from backend.database import supabase
+from backend.security import AuthBackendUnavailable, verify_admin_session
+
+
+logger = logging.getLogger("tien_nha_api")
 
 app = FastAPI(
     title="Tiền Nhà 904B API",
     description="Hệ thống quản lý và tính tiền nhà 904B",
-    version="1.0.0",
+    version="2.0.0",
+    docs_url=None if IS_PRODUCTION else "/docs",
+    redoc_url=None if IS_PRODUCTION else "/redoc",
+    openapi_url=None if IS_PRODUCTION else "/openapi.json",
 )
 
-# Cấu hình CORS hỗ trợ linh hoạt mọi domain Vercel, Render và Localhost
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=get_allowed_origins(),
     allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
+    expose_headers=["X-Request-ID"],
 )
 
-# Đăng ký các routers
 app.include_router(members.router)
 app.include_router(monthly.router)
 app.include_router(settings.router)
 
+PUBLIC_API_PATHS = {"/api/health", "/api/auth/login"}
+
+
 @app.middleware("http")
-async def admin_auth_middleware(request: Request, call_next):
-    # Chỉ chặn các thao tác thay đổi dữ liệu (POST, PUT, DELETE)
-    # Bỏ qua POST /api/settings/verify-pin
-    if request.method in ["POST", "PUT", "DELETE"]:
-        if request.url.path == "/api/settings/verify-pin":
-            return await call_next(request)
-            
-        # Lấy X-Admin-Pin từ header
-        client_pin = request.headers.get("X-Admin-Pin")
-        
-        # Fetch pin thực tế từ DB
+async def security_middleware(request: Request, call_next):
+    request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
+    request.state.request_id = request_id
+
+    if (
+        request.method != "OPTIONS"
+        and request.url.path.startswith("/api")
+        and request.url.path not in PUBLIC_API_PATHS
+    ):
+        authorization = request.headers.get("Authorization", "")
+        token = authorization[7:] if authorization.startswith("Bearer ") else ""
         try:
-            res = supabase.table("global_settings").select("value").eq("key", "admin_pin").execute()
-            current_pin = "123456" # Mặc định
-            if res and res.data and len(res.data) > 0:
-                current_pin = str(res.data[0]["value"])
-                
-            if not client_pin or client_pin != current_pin:
-                return JSONResponse(
+            authenticated = bool(token) and verify_admin_session(token)
+        except AuthBackendUnavailable:
+            return _secure_response(
+                JSONResponse(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    content={"detail": "Dịch vụ xác thực tạm thời không sẵn sàng.", "request_id": request_id},
+                ),
+                request_id,
+            )
+        if not authenticated:
+            return _secure_response(
+                JSONResponse(
                     status_code=status.HTTP_401_UNAUTHORIZED,
-                    content={"detail": "Sai mã PIN Quản trị viên hoặc chưa đăng nhập!"}
-                )
-        except Exception as e:
-            pass # Nếu lỗi DB, có thể cho qua hoặc chặn tuỳ strategy, nhưng tạm cho chặn
-            
+                    content={"detail": "Phiên truy cập thiếu, sai hoặc đã hết hạn.", "request_id": request_id},
+                ),
+                request_id,
+            )
+
     response = await call_next(request)
+    return _secure_response(response, request_id)
+
+
+def _secure_response(response, request_id: str):
+    response.headers["X-Request-ID"] = request_id
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
+    response.headers["Cache-Control"] = "no-store"
+    if IS_PRODUCTION:
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return response
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error_handler(request: Request, exc: RequestValidationError):
+    request_id = getattr(request.state, "request_id", str(uuid.uuid4()))
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"detail": exc.errors(), "request_id": request_id},
+    )
+
+
+@app.exception_handler(Exception)
+async def unexpected_error_handler(request: Request, exc: Exception):
+    if isinstance(exc, HTTPException):
+        raise exc
+    request_id = getattr(request.state, "request_id", str(uuid.uuid4()))
+    logger.exception("Unhandled request error request_id=%s", request_id)
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"detail": "Lỗi máy chủ nội bộ.", "request_id": request_id},
+    )
 
 
 @app.get("/")
 def read_root():
-    return {
-        "status": "online",
-        "message": "API Tiền Nhà 904B đang hoạt động.",
-        "docs": "/docs",
-    }
+    return {"status": "online", "message": "API Tiền Nhà 904B đang hoạt động.", "version": "2.0.0"}

@@ -1,150 +1,131 @@
-from typing import List, Dict, Any
+from typing import Any
+
 from backend.database import supabase
 
-# Phí cố định mặc định (Sẽ được ghi đè bởi cấu hình trong DB nếu có)
-DEFAULT_SERVICE_FEE = 133000
-DEFAULT_PARKING_FEE = 173000
 
-# Danh sách 6 thành viên cố định làm Mặc Định (Fallback) theo 01_business_logic.md
-DEFAULT_MEMBERS = [
-    {"id": "11111111-1111-1111-1111-111111111111", "name": "Duy", "fixed_rent": 3750000},
-    {"id": "22222222-2222-2222-2222-222222222222", "name": "Khải", "fixed_rent": 3750000},
-    {"id": "33333333-3333-3333-3333-333333333333", "name": "P.Khang", "fixed_rent": 3000000},
-    {"id": "44444444-4444-4444-4444-444444444444", "name": "N.Khang", "fixed_rent": 3000000},
-    {"id": "55555555-5555-5555-5555-555555555555", "name": "Thịnh", "fixed_rent": 2500000},
-    {"id": "66666666-6666-6666-6666-666666666666", "name": "Khoa", "fixed_rent": 2000000},
-]
+DEFAULT_SERVICE_FEE = 133_000
+DEFAULT_PARKING_FEE = 173_000
+MAX_MONEY = 100_000_000
 
 
-def calculate_member_bill(month: int, year: int) -> List[Dict[str, Any]]:
-    """
-    Tính toán hóa đơn chốt sổ hàng tháng cho các thành viên dựa trên 01_business_logic.md.
+class BillingDataError(RuntimeError):
+    pass
 
-    Công thức:
-      Số tiền 1 người phải đóng =
-          Tiền phòng cố định (1)
-        + 133.000đ phí dịch vụ (2)
-        + Tiền gửi xe của tháng đó (3) - mặc định 173.000đ hoặc override
-        + phần Điện & Nước chia cho số thành viên đang ở (4)
-    """
-    # 0. Fetch cấu hình chung (Phí dịch vụ)
-    service_fee = DEFAULT_SERVICE_FEE
+
+def _money(value: Any, field: str, maximum: int = MAX_MONEY) -> int:
     try:
-        settings_resp = supabase.table("global_settings").select("*").execute()
-        if settings_resp and settings_resp.data:
-            for row in settings_resp.data:
-                if row["key"] == "service_fee":
-                    service_fee = row["value"]
-    except Exception as e:
-        print(f"Warning: Fetching global_settings failed ({e}). Using default service fee.")
+        normalized = int(value or 0)
+    except (TypeError, ValueError) as exc:
+        raise BillingDataError(f"{field} không phải số nguyên hợp lệ.") from exc
+    if not 0 <= normalized <= maximum:
+        raise BillingDataError(f"{field} nằm ngoài giới hạn.")
+    return normalized
 
-    # 1. Fetch danh sách thành viên từ DB (nếu rỗng sẽ tự động dùng DEFAULT_MEMBERS)
-    members = []
+
+def _fetch_service_fee() -> int:
     try:
-        members_resp = supabase.table("members").select("*").execute()
-        if members_resp and members_resp.data and len(members_resp.data) > 0:
-            # Deduplicate theo tên
-            seen = set()
-            for m in members_resp.data:
-                if m["name"] not in seen:
-                    seen.add(m["name"])
-                    members.append(m)
-    except Exception as e:
-        print(f"Warning: Fetching members from DB failed ({e}). Using default members list.")
+        response = (
+            supabase.table("global_settings")
+            .select("key,value")
+            .eq("key", "service_fee")
+            .execute()
+        )
+    except Exception as exc:
+        raise BillingDataError("Không thể tải phí dịch vụ.") from exc
+    if not response.data:
+        return DEFAULT_SERVICE_FEE
+    return _money(response.data[0].get("value"), "Phí dịch vụ", 10_000_000)
 
+
+def _fetch_members() -> list[dict[str, Any]]:
+    try:
+        response = (
+            supabase.table("members")
+            .select("id,name,fixed_rent")
+            .is_("archived_at", "null")
+            .order("name")
+            .execute()
+        )
+    except Exception as exc:
+        raise BillingDataError("Không thể tải thành viên.") from exc
+    members = response.data or []
     if not members:
-        members = DEFAULT_MEMBERS
+        raise BillingDataError("Chưa có thành viên trong hệ thống.")
+    normalized_names = [str(member.get("name", "")).strip().casefold() for member in members]
+    if any(not name for name in normalized_names) or len(set(normalized_names)) != len(normalized_names):
+        raise BillingDataError("Danh sách thành viên trống hoặc trùng tên.")
+    return members
 
-    # 2. Fetch chu kỳ hàng tháng (Monthly_Cycles) cho tháng và năm tương ứng
-    cycle = None
+
+def calculate_member_bill(month: int, year: int) -> list[dict[str, Any]]:
+    service_fee = _fetch_service_fee()
+    members = _fetch_members()
+
     try:
-        cycle_resp = (
+        cycle_response = (
             supabase.table("monthly_cycles")
-            .select("*")
+            .select("id,month,year,electricity_amount,water_amount,version")
             .eq("month", month)
             .eq("year", year)
             .execute()
         )
-        if cycle_resp and cycle_resp.data:
-            cycle = cycle_resp.data[0]
-    except Exception as e:
-        print(f"Warning: Fetching monthly_cycles failed ({e}).")
+    except Exception as exc:
+        raise BillingDataError("Không thể tải kỳ chốt sổ.") from exc
 
-    electricity_amount = cycle.get("electricity_amount", 0) if cycle else 0
-    water_amount = cycle.get("water_amount", 0) if cycle else 0
+    cycle = cycle_response.data[0] if cycle_response.data else None
     cycle_id = cycle.get("id") if cycle else None
+    cycle_version = int(cycle.get("version", 0)) if cycle else 0
+    electricity_amount = _money(cycle.get("electricity_amount", 0) if cycle else 0, "Tiền điện")
+    water_amount = _money(cycle.get("water_amount", 0) if cycle else 0, "Tiền nước")
 
-    # Lấy thông tin overrides để biết có ai bị loại khỏi vòng chia tiền (is_excluded) hay không
-    overrides_data: Dict[str, Dict[str, Any]] = {}
+    overrides: dict[str, dict[str, Any]] = {}
     if cycle_id:
         try:
-            overrides_resp = (
+            response = (
                 supabase.table("monthly_overrides")
-                .select("*")
+                .select("member_id,parking_fee,is_paid,is_excluded,version")
                 .eq("cycle_id", cycle_id)
                 .execute()
             )
-            if overrides_resp and overrides_resp.data:
-                for ov in overrides_resp.data:
-                    m_id = str(ov.get("member_id"))
-                    overrides_data[m_id] = {
-                        "parking_fee": ov.get("parking_fee"),
-                        "is_paid": ov.get("is_paid", False),
-                        "is_excluded": ov.get("is_excluded", False),
-                    }
-        except Exception as e:
-            print(f"Warning: Fetching monthly_overrides failed ({e}).")
+        except Exception as exc:
+            raise BillingDataError("Không thể tải tùy chỉnh thành viên.") from exc
+        overrides = {str(item["member_id"]): item for item in (response.data or [])}
 
-    # Đếm số lượng thành viên thực sự tham gia chia tiền
-    active_members_count = 0
-    for member in members:
-        m_id = str(member["id"])
-        ov_member = overrides_data.get(m_id, {})
-        if not ov_member.get("is_excluded", False):
-            active_members_count += 1
-            
+    active_members_count = sum(
+        1 for member in members
+        if not bool(overrides.get(str(member["id"]), {}).get("is_excluded", False))
+    )
     if active_members_count == 0:
-        active_members_count = 1 # Tránh chia cho 0
+        raise BillingDataError("Không thể chia điện nước khi tất cả thành viên đều vắng.")
 
-    # Tính tiền điện + nước chia cho người tham gia
-    utility_total = electricity_amount + water_amount
-    utility_share_per_person = round(utility_total / active_members_count)
-
-    # 3. Tính toán tiền chốt sổ cho từng người
+    utility_share = round((electricity_amount + water_amount) / active_members_count)
     billing_summary = []
+
     for member in members:
-        m_id = str(member["id"])
-        fixed_rent = member.get("fixed_rent", 0)
-
-        # Dữ liệu overrides của member
-        ov_member = overrides_data.get(m_id, {})
-        
-        # Phí xe: Lấy ghi đè nếu có, nếu không lấy mặc định 173.000đ
-        parking_fee = ov_member.get("parking_fee") if ov_member.get("parking_fee") is not None else DEFAULT_PARKING_FEE
-        
-        # Trạng thái đã thu tiền (is_paid)
-        is_paid = ov_member.get("is_paid", False)
-
-        # Kiểm tra miễn chia tiền
-        is_excluded = ov_member.get("is_excluded", False)
-        
-        member_utility_share = 0 if is_excluded else utility_share_per_person
-        total_due = (
-            fixed_rent
-            + service_fee
-            + parking_fee
-            + member_utility_share
-        )
+        member_id = str(member["id"])
+        override = overrides.get(member_id, {})
+        is_excluded = bool(override.get("is_excluded", False))
+        fixed_rent = _money(member.get("fixed_rent"), "Tiền phòng")
+        parking_value = override.get("parking_fee")
+        if parking_value is None:
+            parking_value = DEFAULT_PARKING_FEE
+        parking_fee = 0 if is_excluded else _money(parking_value, "Phí gửi xe", 10_000_000)
+        member_utility_share = 0 if is_excluded else utility_share
 
         billing_summary.append({
             "member_id": member["id"],
-            "name": member["name"],
+            "name": str(member["name"]),
             "fixed_rent": fixed_rent,
             "service_fee": service_fee,
             "parking_fee": parking_fee,
+            "electricity_amount": electricity_amount,
+            "water_amount": water_amount,
             "utility_share": member_utility_share,
-            "total_due": total_due,
-            "is_paid": is_paid,
+            "active_members_count": active_members_count,
+            "cycle_version": cycle_version,
+            "override_version": int(override.get("version", 0)),
+            "total_due": fixed_rent + service_fee + parking_fee + member_utility_share,
+            "is_paid": bool(override.get("is_paid", False)),
             "is_excluded": is_excluded,
         })
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getMembers, addMember, updateMember, deleteMember, getSettings, updateSetting } from '../services/api';
+import { getMembers, addMember, updateMember, deleteMember, getSettings, updateServiceFee, updateAdminPin } from '../services/api';
 import { X, Users, Settings as SettingsIcon, Save, Plus, Trash2, Edit2, Loader2, DollarSign, KeyRound } from 'lucide-react';
 import useModalDialog from '../hooks/useModalDialog';
 
@@ -16,7 +16,10 @@ export default function SystemConfigModal({ onClose, onUpdated }) {
 
   // Settings state
   const [serviceFee, setServiceFee] = useState('');
+  const [serviceFeeVersion, setServiceFeeVersion] = useState(1);
   const [adminPin, setAdminPin] = useState('');
+  const [adminPinVersion, setAdminPinVersion] = useState(1);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -24,16 +27,20 @@ export default function SystemConfigModal({ onClose, onUpdated }) {
 
   const fetchData = async () => {
     setLoading(true);
+    setError('');
     try {
       const [membersData, settingsData] = await Promise.all([
         getMembers(),
         getSettings()
       ]);
       setMembers(membersData);
-      setServiceFee(settingsData.service_fee || 133000);
-      setAdminPin(settingsData.admin_pin || '');
+      setServiceFee(settingsData.service_fee ?? 133000);
+      setServiceFeeVersion(Number(settingsData.service_fee_version || 1));
+      setAdminPinVersion(Number(settingsData.admin_pin_version || 1));
+      setAdminPin('');
     } catch (err) {
       console.error('Lỗi tải dữ liệu cấu hình:', err);
+      setError('Không thể tải cấu hình thật từ máy chủ.');
     } finally {
       setLoading(false);
     }
@@ -41,38 +48,50 @@ export default function SystemConfigModal({ onClose, onUpdated }) {
 
   const handleSaveServiceFee = async () => {
     try {
-      await updateSetting('service_fee', parseInt(serviceFee, 10));
+      const value = Number(serviceFee);
+      if (!Number.isInteger(value) || value < 0 || value > 10000000) {
+        setError('Phí dịch vụ phải từ 0 đến 10.000.000đ.');
+        return;
+      }
+      await updateServiceFee(value, serviceFeeVersion);
       alert('Đã cập nhật Phí Dịch Vụ Mặc Định');
+      await fetchData();
       if (onUpdated) onUpdated();
     } catch (err) {
-      alert('Lỗi khi lưu cấu hình');
+      setError(err.response?.data?.detail || 'Lỗi khi lưu cấu hình.');
     }
   };
 
   const handleSaveAdminPin = async () => {
-    if (!adminPin || adminPin.length < 4) {
-      alert('Mã PIN phải có ít nhất 4 ký tự!');
+    if (!/^\d{6,12}$/.test(adminPin)) {
+      setError('Mã PIN phải gồm 6–12 chữ số.');
       return;
     }
     try {
-      await updateSetting('admin_pin', adminPin);
+      await updateAdminPin(adminPin, adminPinVersion);
       alert('Đã đổi Mã PIN Quản Trị thành công!');
+      setAdminPin('');
+      await fetchData();
     } catch (err) {
-      alert('Lỗi khi đổi mã PIN');
+      setError(err.response?.data?.detail || 'Lỗi khi đổi mã PIN.');
     }
   };
 
   const handleAddMember = async (e) => {
     e.preventDefault();
-    if (!newMember.name || !newMember.fixed_rent) return;
+    const rent = Number(newMember.fixed_rent);
+    if (!newMember.name.trim() || !Number.isInteger(rent) || rent < 0 || rent > 100000000) {
+      setError('Tên và tiền phòng (0–100.000.000đ) không hợp lệ.');
+      return;
+    }
     try {
-      await addMember(newMember.name, parseInt(newMember.fixed_rent, 10));
+      await addMember(newMember.name, rent);
       setIsAdding(false);
       setNewMember({ name: '', fixed_rent: '' });
-      fetchData();
+      await fetchData();
       if (onUpdated) onUpdated();
     } catch (err) {
-      alert('Lỗi thêm thành viên');
+      setError(err.response?.data?.detail || 'Lỗi thêm thành viên.');
     }
   };
 
@@ -80,23 +99,28 @@ export default function SystemConfigModal({ onClose, onUpdated }) {
     e.preventDefault();
     if (!editingMember) return;
     try {
-      await updateMember(editingMember.id, editingMember.name, parseInt(editingMember.fixed_rent, 10));
+      const rent = Number(editingMember.fixed_rent);
+      if (!editingMember.name.trim() || !Number.isInteger(rent) || rent < 0 || rent > 100000000) {
+        setError('Tên và tiền phòng (0–100.000.000đ) không hợp lệ.');
+        return;
+      }
+      await updateMember(editingMember.id, editingMember.name, rent, editingMember.version);
       setEditingMember(null);
-      fetchData();
+      await fetchData();
       if (onUpdated) onUpdated();
     } catch (err) {
-      alert('Lỗi cập nhật thành viên');
+      setError(err.response?.data?.detail || 'Lỗi cập nhật thành viên.');
     }
   };
 
-  const handleDeleteMember = async (id, name) => {
+  const handleDeleteMember = async (id, name, version) => {
     if (!window.confirm(`Bạn có chắc chắn muốn xóa thành viên "${name}" khỏi nhà không?`)) return;
     try {
-      await deleteMember(id);
-      fetchData();
+      await deleteMember(id, version);
+      await fetchData();
       if (onUpdated) onUpdated();
     } catch (err) {
-      alert('Lỗi xóa thành viên');
+      setError(err.response?.data?.detail || 'Lỗi xóa thành viên.');
     }
   };
 
@@ -143,6 +167,11 @@ export default function SystemConfigModal({ onClose, onUpdated }) {
 
         {/* Body */}
         <div className="p-5 md:p-6 overflow-y-auto custom-scrollbar">
+          {error && (
+            <p role="alert" className="mb-4 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-300">
+              {error}
+            </p>
+          )}
           {loading ? (
             <div className="flex justify-center items-center py-10">
               <Loader2 className="w-6 h-6 animate-spin text-emerald-400" />
@@ -185,6 +214,8 @@ export default function SystemConfigModal({ onClose, onUpdated }) {
                         onChange={e => setNewMember({...newMember, fixed_rent: e.target.value})}
                         className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 text-sm focus:border-emerald-500 outline-none font-mono"
                         placeholder="3750000"
+                        min="0"
+                        max="100000000"
                       />
                     </div>
                   </div>
@@ -212,6 +243,8 @@ export default function SystemConfigModal({ onClose, onUpdated }) {
                             value={editingMember.fixed_rent} 
                             onChange={e => setEditingMember({...editingMember, fixed_rent: e.target.value})}
                             className="w-full bg-slate-950 border border-slate-600 rounded-lg px-3 py-2 text-slate-100 text-sm font-mono" 
+                            min="0"
+                            max="100000000"
                           />
                           <button type="submit" className="p-2 bg-emerald-500 text-slate-950 rounded-lg hover:bg-emerald-400"><Save className="w-4 h-4" /></button>
                           <button type="button" onClick={() => setEditingMember(null)} className="p-2 bg-slate-700 text-slate-300 rounded-lg hover:bg-slate-600"><X className="w-4 h-4" /></button>
@@ -227,7 +260,7 @@ export default function SystemConfigModal({ onClose, onUpdated }) {
                           <button onClick={() => setEditingMember(member)} className="p-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg transition" title="Sửa">
                             <Edit2 className="w-4 h-4" />
                           </button>
-                          <button onClick={() => handleDeleteMember(member.id, member.name)} className="p-2 bg-rose-500/20 hover:bg-rose-500 border border-rose-500/50 hover:text-white text-rose-400 rounded-lg transition" title="Xóa">
+                          <button onClick={() => handleDeleteMember(member.id, member.name, member.version)} className="p-2 bg-rose-500/20 hover:bg-rose-500 border border-rose-500/50 hover:text-white text-rose-400 rounded-lg transition" title="Xóa">
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
@@ -252,6 +285,8 @@ export default function SystemConfigModal({ onClose, onUpdated }) {
                     value={serviceFee}
                     onChange={e => setServiceFee(e.target.value)}
                     className="flex-1 bg-slate-950 border border-slate-600 rounded-xl px-4 py-3 text-slate-100 font-mono focus:border-emerald-500 outline-none transition"
+                    min="0"
+                    max="10000000"
                   />
                   <button 
                     onClick={handleSaveServiceFee}

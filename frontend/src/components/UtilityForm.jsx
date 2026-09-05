@@ -1,16 +1,36 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { updateMonthlyUtilities } from '../services/api';
+import { getMonthlyBilling, updateMonthlyUtilities } from '../services/api';
 import { Zap, Droplets, Save, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 
 export default function UtilityForm({ month, year, onUpdated }) {
   const [electricity, setElectricity] = useState('');
   const [water, setWater] = useState('');
+  const [cycleVersion, setCycleVersion] = useState(0);
 
   const [loading, setLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    const loadCurrentValues = async () => {
+      setErrorMsg('');
+      try {
+        const billing = await getMonthlyBilling(month, year);
+        if (!active) return;
+        const first = Array.isArray(billing) ? billing[0] : null;
+        setElectricity(String(first?.electricity_amount ?? 0));
+        setWater(String(first?.water_amount ?? 0));
+        setCycleVersion(Number(first?.cycle_version ?? 0));
+      } catch (_error) {
+        if (active) setErrorMsg('Không thể tải số điện nước hiện tại. Vui lòng thử lại.');
+      }
+    };
+    loadCurrentValues();
+    return () => { active = false; };
+  }, [month, year]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -20,22 +40,24 @@ export default function UtilityForm({ month, year, onUpdated }) {
     const parsedElec = parseInt(electricity || '0', 10);
     const parsedWater = parseInt(water || '0', 10);
 
-    if (isNaN(parsedElec) || parsedElec < 0) {
-      setErrorMsg('Vui lòng nhập tiền điện hợp lệ (>= 0).');
+    if (!Number.isInteger(parsedElec) || parsedElec < 0 || parsedElec > 100000000) {
+      setErrorMsg('Tiền điện phải từ 0 đến 100.000.000đ.');
       return;
     }
-    if (isNaN(parsedWater) || parsedWater < 0) {
-      setErrorMsg('Vui lòng nhập tiền nước hợp lệ (>= 0).');
+    if (!Number.isInteger(parsedWater) || parsedWater < 0 || parsedWater > 100000000) {
+      setErrorMsg('Tiền nước phải từ 0 đến 100.000.000đ.');
       return;
     }
 
     setLoading(true);
 
     try {
-      await updateMonthlyUtilities(month, year, {
+      const response = await updateMonthlyUtilities(month, year, {
         electricity_amount: parsedElec,
         water_amount: parsedWater,
+        expected_version: cycleVersion,
       });
+      setCycleVersion(Number(response?.data?.version ?? cycleVersion + 1));
 
       setSuccessMsg(
         `Đã lưu Tiền Điện (${parsedElec.toLocaleString('vi-VN')}đ) & Tiền Nước (${parsedWater.toLocaleString('vi-VN')}đ) Tháng ${month}/${year}. Hóa đơn đã được tính lại theo số thành viên đang ở.`
@@ -47,6 +69,9 @@ export default function UtilityForm({ month, year, onUpdated }) {
     } catch (err) {
       console.error('Lỗi khi cập nhật tiền điện nước:', err);
       let msg = 'Không thể kết nối Backend server để lưu tiền điện nước.';
+      if (err.response?.status === 409) {
+        msg = 'Dữ liệu đã được người khác cập nhật. Hãy tải lại kỳ chốt sổ rồi thử lại.';
+      }
       if (err.response?.data?.detail) {
         const detail = err.response.data.detail;
         msg = typeof detail === 'string' ? detail : JSON.stringify(detail);

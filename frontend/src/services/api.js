@@ -3,14 +3,23 @@ import axios from 'axios';
 // Domain Production Backend mặc định trên Render.com
 // Tự động nhận diện khi web chạy trên Vercel/Internet
 const PRODUCTION_BACKEND_URL = 'https://tien-nha-904b-backend.onrender.com/api';
-let adminPinInMemory = '';
+let adminSessionInMemory = '';
 
-export const setAdminPin = (pin) => {
-  adminPinInMemory = String(pin || '');
+const newIdempotencyKey = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (character) => {
+    const random = Math.floor(Math.random() * 16);
+    const value = character === 'x' ? random : (random & 0x3) | 0x8;
+    return value.toString(16);
+  });
 };
 
-export const clearAdminPin = () => {
-  adminPinInMemory = '';
+export const setAdminSession = (token) => {
+  adminSessionInMemory = String(token || '');
+};
+
+export const clearAdminSession = () => {
+  adminSessionInMemory = '';
 };
 
 export const getApiBaseUrl = () => {
@@ -39,8 +48,8 @@ const api = axios.create({
 api.interceptors.request.use((config) => {
   config.baseURL = getApiBaseUrl();
   
-  if (!config.url?.endsWith('/auth/login') && !config.url?.endsWith('/settings/verify-pin')) {
-    if (adminPinInMemory) config.headers['X-Admin-Pin'] = adminPinInMemory;
+  if (!config.url?.endsWith('/auth/login')) {
+    if (adminSessionInMemory) config.headers.Authorization = `Bearer ${adminSessionInMemory}`;
   }
   return config;
 });
@@ -59,8 +68,10 @@ api.interceptors.response.use(
 );
 
 export const verifyAdminPin = async (pin) => {
-  const response = await api.post('/settings/verify-pin', { pin });
-  if (response.data?.success) setAdminPin(pin);
+  const response = await api.post('/auth/login', { pin });
+  if (response.data?.success && response.data?.session_token) {
+    setAdminSession(response.data.session_token);
+  }
   return response.data;
 };
 
@@ -69,31 +80,37 @@ export const getMonthlyBilling = async (month, year) => {
   return response.data;
 };
 
-export const updateMonthlyUtilities = async (month, year, { electricity_amount, water_amount }) => {
+export const updateMonthlyUtilities = async (month, year, { electricity_amount, water_amount, expected_version, idempotency_key }) => {
   const response = await api.put(`/monthly/${month}/${year}`, {
     electricity_amount,
     water_amount,
+    expected_version,
+    idempotency_key: idempotency_key || newIdempotencyKey(),
   });
   return response.data;
 };
 
-export const updatePaymentStatus = async (memberId, month, year, isPaid) => {
+export const updatePaymentStatus = async (memberId, month, year, isPaid, expectedVersion) => {
   const response = await api.put('/overrides/status', {
     member_id: memberId,
     month,
     year,
     is_paid: isPaid,
+    expected_version: expectedVersion,
+    idempotency_key: newIdempotencyKey(),
   });
   return response.data;
 };
 
-export const updateMemberOverride = async ({ member_id, month, year, parking_fee, is_excluded }) => {
+export const updateMemberOverride = async ({ member_id, month, year, parking_fee, is_excluded, expected_version }) => {
   const response = await api.put('/overrides', {
     member_id,
     month,
     year,
     parking_fee,
     is_excluded,
+    expected_version,
+    idempotency_key: newIdempotencyKey(),
   });
   return response.data;
 };
@@ -114,13 +131,15 @@ export const addMember = async (name, fixed_rent) => {
   return response.data;
 };
 
-export const updateMember = async (member_id, name, fixed_rent) => {
-  const response = await api.put(`/members/${member_id}`, { name, fixed_rent });
+export const updateMember = async (member_id, name, fixed_rent, expected_version) => {
+  const response = await api.put(`/members/${member_id}`, { name, fixed_rent, expected_version });
   return response.data;
 };
 
-export const deleteMember = async (member_id) => {
-  const response = await api.delete(`/members/${member_id}`);
+export const deleteMember = async (member_id, expectedVersion) => {
+  const response = await api.delete(`/members/${member_id}`, {
+    params: { expected_version: expectedVersion },
+  });
   return response.data;
 };
 
@@ -130,8 +149,14 @@ export const getSettings = async () => {
   return response.data;
 };
 
-export const updateSetting = async (key, value) => {
-  const response = await api.put(`/settings/${key}`, { value });
+export const updateServiceFee = async (value, expectedVersion) => {
+  const response = await api.put('/settings/service-fee', { value, expected_version: expectedVersion });
+  return response.data;
+};
+
+export const updateAdminPin = async (pin, expectedVersion) => {
+  const response = await api.put('/settings/admin-pin', { pin, expected_version: expectedVersion });
+  if (response.data?.session_token) setAdminSession(response.data.session_token);
   return response.data;
 };
 

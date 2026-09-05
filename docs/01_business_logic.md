@@ -56,7 +56,7 @@ utility_share = 0
 
 ## BR-008 — Cập nhật đồng thời
 
-- Mỗi bản ghi tháng và tùy chỉnh thành viên có cột `version`.
+- Mỗi bản ghi tháng, tùy chỉnh thành viên, thành viên và cấu hình có cột `version`.
 - Client gửi `expected_version`; server chỉ cập nhật khi phiên bản khớp.
 - Nếu dữ liệu đã được người khác sửa, API trả `409 Conflict`; UI tải lại dữ liệu mới và yêu cầu người dùng thử lại.
 - Mỗi mutation nhận `idempotency_key`; gửi lại cùng khóa phải trả cùng kết quả và không ghi lần thứ hai.
