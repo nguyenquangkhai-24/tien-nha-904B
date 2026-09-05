@@ -15,7 +15,7 @@ Production gồm GitHub → Render (FastAPI) → Supabase và GitHub → Vercel 
 1. Xác nhận đúng Supabase project ref mà Render đang dùng.
 2. Xác nhận Render dùng secret/service-role key; tuyệt đối không bật RLS rồi dùng anon key cho backend.
 3. Backup hoặc snapshot trước DDL có rủi ro.
-4. Áp dụng migration theo thứ tự trong `supabase/migrations`.
+4. Áp dụng migration theo thứ tự trong `supabase/migrations`; chạy lại Advisor và xử lý cảnh báo index trước khi qua cổng.
 5. Chạy query kiểm tra constraints, RLS, grants, RPC và dữ liệu 6 thành viên.
 
 ## Cổng 3 — GitHub và CI
