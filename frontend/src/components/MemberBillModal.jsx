@@ -40,7 +40,6 @@ Tháng ${month}/${year}
 🔹 Phí dịch vụ: ${formatVND(memberData.service_fee)}
 🔹 Phí gửi xe: ${formatVND(memberData.parking_fee)}
 🔹 Điện & Nước (chia 6): ${formatVND(memberData.utility_share)}
-🔹 Phát sinh chung (chia 6): ${formatVND(memberData.extra_expense_share)}
 ----------------------------------
 👉 TỔNG THANH TOÁN: ${formatVND(memberData.total_due)}
 
@@ -100,10 +99,6 @@ Tháng ${month}/${year}
                 <div className="flex justify-between items-center text-xs md:text-sm">
                   <span className="text-slate-400">Điện & Nước (chia 6)</span>
                   <span className="text-slate-200 font-mono font-medium">{formatVND(memberData.utility_share)}</span>
-                </div>
-                <div className="flex justify-between items-center text-xs md:text-sm">
-                  <span className="text-slate-400">Đồ dùng chung (chia 6)</span>
-                  <span className="text-slate-200 font-mono font-medium">{formatVND(memberData.extra_expense_share)}</span>
                 </div>
               </div>
             </div>

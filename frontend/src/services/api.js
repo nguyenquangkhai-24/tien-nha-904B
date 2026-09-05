@@ -70,24 +70,6 @@ export const updateMonthlyUtilities = async (month, year, { electricity_amount, 
   return response.data;
 };
 
-export const createExpense = async ({ buyer_id, item_name, amount, month, year, cycle_id, bill_url }) => {
-  const response = await api.post('/expenses', {
-    buyer_id,
-    item_name,
-    amount,
-    month,
-    year,
-    cycle_id,
-    bill_url,
-  });
-  return response.data;
-};
-
-export const deleteExpense = async (expenseId) => {
-  const response = await api.delete(`/expenses/${expenseId}`);
-  return response.data;
-};
-
 export const updatePaymentStatus = async (memberId, month, year, isPaid) => {
   const response = await api.put('/overrides/status', {
     member_id: memberId,
@@ -95,11 +77,6 @@ export const updatePaymentStatus = async (memberId, month, year, isPaid) => {
     year,
     is_paid: isPaid,
   });
-  return response.data;
-};
-
-export const getExpensesByMonth = async (month, year) => {
-  const response = await api.get(`/expenses/${month}/${year}`);
   return response.data;
 };
 

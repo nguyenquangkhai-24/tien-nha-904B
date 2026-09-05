@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getYearlyStats } from '../services/api';
-import { BarChart3, ChevronLeft, ChevronRight, Zap, Droplet, ShoppingCart, Loader2 } from 'lucide-react';
+import { BarChart3, ChevronLeft, ChevronRight, Zap, Droplet, Loader2 } from 'lucide-react';
 
 export default function AnalyticsChart({ currentYear }) {
   const [year, setYear] = useState(currentYear || new Date().getFullYear());
@@ -48,7 +48,7 @@ export default function AnalyticsChart({ currentYear }) {
           </div>
           <div>
             <h2 className="text-lg md:text-xl font-bold text-slate-100">Thống Kê Chi Phí Chung</h2>
-            <p className="text-sm text-slate-400">Điện, Nước & Phát sinh theo từng tháng</p>
+            <p className="text-sm text-slate-400">Điện & Nước theo từng tháng</p>
           </div>
         </div>
 
@@ -92,10 +92,6 @@ export default function AnalyticsChart({ currentYear }) {
               <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>
               <span className="flex items-center gap-1"><Droplet className="w-3.5 h-3.5" /> Nước</span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.5)]"></div>
-              <span className="flex items-center gap-1"><ShoppingCart className="w-3.5 h-3.5" /> Phát sinh</span>
-            </div>
           </div>
 
           {/* Chart Area */}
@@ -118,7 +114,6 @@ export default function AnalyticsChart({ currentYear }) {
                 const totalHeight = (item.total / maxTotal) * 100;
                 const elecHeight = item.total > 0 ? (item.electricity / item.total) * 100 : 0;
                 const waterHeight = item.total > 0 ? (item.water / item.total) * 100 : 0;
-                const extraHeight = item.total > 0 ? (item.extra / item.total) * 100 : 0;
                 
                 const hasData = item.total > 0;
 
@@ -140,10 +135,6 @@ export default function AnalyticsChart({ currentYear }) {
                             <span>Nước:</span>
                             <span className="font-mono">{formatVND(item.water)}</span>
                           </div>
-                          <div className="flex justify-between items-center text-rose-400">
-                            <span>Phát sinh:</span>
-                            <span className="font-mono">{formatVND(item.extra)}</span>
-                          </div>
                           <div className="flex justify-between items-center text-slate-200 font-bold border-t border-slate-700 pt-1.5 mt-1.5">
                             <span>Tổng:</span>
                             <span className="font-mono">{formatVND(item.total)}</span>
@@ -160,7 +151,6 @@ export default function AnalyticsChart({ currentYear }) {
                       >
                         <div className="w-full bg-sky-500 transition-all duration-300" style={{ height: `${elecHeight}%` }}></div>
                         <div className="w-full bg-emerald-500 transition-all duration-300" style={{ height: `${waterHeight}%` }}></div>
-                        <div className="w-full bg-rose-500 transition-all duration-300" style={{ height: `${extraHeight}%` }}></div>
                       </div>
                     </div>
 

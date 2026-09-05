@@ -2,10 +2,7 @@
 
 import { useState } from 'react';
 import Dashboard from '../components/Dashboard';
-import ExpenseForm from '../components/ExpenseForm';
 import UtilityForm from '../components/UtilityForm';
-
-import ExpenseList from '../components/ExpenseList';
 
 export default function Home() {
   const currentDate = new Date();
@@ -30,31 +27,13 @@ export default function Home() {
         </p>
       </header>
 
-      {/* Grid chứa 2 Form nhập dữ liệu */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Form 1: Cập nhật Tiền Điện & Tiền Nước */}
+      <div>
         <UtilityForm
           month={activeMonth}
           year={activeYear}
           onUpdated={handleDataUpdated}
         />
 
-        <div className="space-y-6">
-          {/* Form 2: Thêm Chi Phí Mua Đồ Phát Sinh */}
-          <ExpenseForm
-            month={activeMonth}
-            year={activeYear}
-            onExpenseAdded={handleDataUpdated}
-          />
-          
-          {/* Form 3: Danh sách & Xóa Chi Phí */}
-          <ExpenseList 
-            month={activeMonth}
-            year={activeYear}
-            refreshKey={refreshKey}
-            onExpenseDeleted={handleDataUpdated}
-          />
-        </div>
       </div>
 
       {/* Bảng chốt sổ tổng quan */}

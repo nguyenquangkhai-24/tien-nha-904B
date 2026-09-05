@@ -27,12 +27,12 @@ import SystemConfigModal from './SystemConfigModal';
 import AdminLoginModal from './AdminLoginModal';
 
 const FALLBACK_BILLING_DATA = [
-  { member_id: '1', name: 'Duy', fixed_rent: 3750000, service_fee: 133000, parking_fee: 173000, utility_share: 0, extra_expense_share: 0, offset_amount: 0, total_due: 4056000 },
-  { member_id: '2', name: 'Khải', fixed_rent: 3750000, service_fee: 133000, parking_fee: 173000, utility_share: 0, extra_expense_share: 0, offset_amount: 0, total_due: 4056000 },
-  { member_id: '3', name: 'P.Khang', fixed_rent: 3000000, service_fee: 133000, parking_fee: 173000, utility_share: 0, extra_expense_share: 0, offset_amount: 0, total_due: 3306000 },
-  { member_id: '4', name: 'N.Khang', fixed_rent: 3000000, service_fee: 133000, parking_fee: 173000, utility_share: 0, extra_expense_share: 0, offset_amount: 0, total_due: 3306000 },
-  { member_id: '5', name: 'Thịnh', fixed_rent: 2500000, service_fee: 133000, parking_fee: 173000, utility_share: 0, extra_expense_share: 0, offset_amount: 0, total_due: 2806000 },
-  { member_id: '6', name: 'Khoa', fixed_rent: 2000000, service_fee: 133000, parking_fee: 173000, utility_share: 0, extra_expense_share: 0, offset_amount: 0, total_due: 2306000 },
+  { member_id: '1', name: 'Duy', fixed_rent: 3750000, service_fee: 133000, parking_fee: 173000, utility_share: 0, total_due: 4056000 },
+  { member_id: '2', name: 'Khải', fixed_rent: 3750000, service_fee: 133000, parking_fee: 173000, utility_share: 0, total_due: 4056000 },
+  { member_id: '3', name: 'P.Khang', fixed_rent: 3000000, service_fee: 133000, parking_fee: 173000, utility_share: 0, total_due: 3306000 },
+  { member_id: '4', name: 'N.Khang', fixed_rent: 3000000, service_fee: 133000, parking_fee: 173000, utility_share: 0, total_due: 3306000 },
+  { member_id: '5', name: 'Thịnh', fixed_rent: 2500000, service_fee: 133000, parking_fee: 173000, utility_share: 0, total_due: 2806000 },
+  { member_id: '6', name: 'Khoa', fixed_rent: 2000000, service_fee: 133000, parking_fee: 173000, utility_share: 0, total_due: 2306000 },
 ];
 
 export default function Dashboard() {
@@ -271,7 +271,6 @@ export default function Dashboard() {
                 <th className="py-3 px-3 md:py-4 md:px-4 text-right">Dịch vụ</th>
                 <th className="py-3 px-3 md:py-4 md:px-4 text-right">Gửi xe</th>
                 <th className="py-3 px-3 md:py-4 md:px-4 text-right">Điện + Nước (/{activeMembersCount})</th>
-                <th className="py-3 px-3 md:py-4 md:px-4 text-right">Phát sinh (/{activeMembersCount})</th>
                 <th className="py-3 px-3 md:py-4 md:px-5 text-right font-bold text-emerald-400">TỔNG ĐÓNG</th>
                 <th className="py-3 px-3 md:py-4 md:px-4 text-center">Trạng Thái</th>
                 <th className="py-3 px-3 md:py-4 md:px-5 text-center">Hoá Đơn</th>
@@ -280,7 +279,7 @@ export default function Dashboard() {
             <tbody className="divide-y divide-slate-700/50">
               {loading ? (
                 <tr>
-                  <td colSpan="9" className="py-12 text-center text-slate-400">
+                  <td colSpan="8" className="py-12 text-center text-slate-400">
                     <div className="flex justify-center items-center gap-2">
                       <RefreshCw className="w-5 h-5 animate-spin text-emerald-400" />
                       <span>Đang kết nối Backend server và tính toán...</span>
@@ -289,7 +288,7 @@ export default function Dashboard() {
                 </tr>
               ) : billingData.length === 0 ? (
                 <tr>
-                  <td colSpan="9" className="py-12 text-center text-slate-400">
+                  <td colSpan="8" className="py-12 text-center text-slate-400">
                     Chưa có dữ liệu chốt sổ cho Tháng {month}/{year}.
                   </td>
                 </tr>
@@ -333,9 +332,6 @@ export default function Dashboard() {
                     </td>
                     <td className="py-3 px-3 md:py-4 md:px-4 text-right font-mono text-slate-300">
                       {formatVND(item.utility_share)}
-                    </td>
-                    <td className="py-3 px-3 md:py-4 md:px-4 text-right font-mono text-slate-300">
-                      {formatVND(item.extra_expense_share)}
                     </td>
                     <td className="py-3 px-3 md:py-4 md:px-5 text-right font-mono font-bold text-sm md:text-base text-emerald-400 bg-emerald-500/5">
                       {formatVND(item.total_due)}
@@ -382,7 +378,7 @@ export default function Dashboard() {
                     <Sparkles className="w-4 h-4 hidden md:block" />
                     <span>TỔNG CỘNG THU:</span>
                   </td>
-                  <td colSpan="5"></td>
+                  <td colSpan="4"></td>
                   <td className="py-4 px-3 md:px-5 text-right text-base md:text-lg text-emerald-400 font-mono">
                     {formatVND(grandTotal)}
                   </td>

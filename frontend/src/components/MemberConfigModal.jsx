@@ -99,7 +99,7 @@ export default function MemberConfigModal({ memberData, month, year, onClose, on
                 <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${isExcluded ? 'translate-x-6' : ''}`}></div>
               </div>
               <div className="text-sm text-slate-300">
-                Miễn chia Điện, Nước & Phát sinh
+                Miễn Điện, Nước & Gửi xe
               </div>
             </label>
 

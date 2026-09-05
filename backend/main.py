@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from backend.routers import members, monthly, expenses, settings
+from backend.routers import members, monthly, settings
 from backend.database import supabase
 
 app = FastAPI(
@@ -22,7 +22,6 @@ app.add_middleware(
 # Đăng ký các routers
 app.include_router(members.router)
 app.include_router(monthly.router)
-app.include_router(expenses.router)
 app.include_router(settings.router)
 
 @app.middleware("http")

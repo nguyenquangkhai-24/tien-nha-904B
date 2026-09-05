@@ -62,11 +62,7 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
    - Lấy chi tiết tính toán hóa đơn chốt sổ của 6 thành viên trong tháng.
 2. **PUT `/api/monthly/:month/:year`**
    - Cập nhật tiền điện và tiền nước của tháng.
-3. **POST `/api/expenses`**
-   - Thêm một khoản chi phí phát sinh (người mua, món đồ, số tiền).
-4. **DELETE `/api/expenses/:id`**
-   - Xóa khoản chi phí phát sinh theo ID.
-5. **PUT `/api/overrides`**
+3. **PUT `/api/overrides`**
    - Ghi đè số tiền gửi xe cho một cá nhân trong tháng cụ thể.
-6. **GET `/api/members`**
+4. **GET `/api/members`**
    - Lấy danh sách thông tin 6 thành viên.

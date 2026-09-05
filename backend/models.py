@@ -43,28 +43,7 @@ class MonthlyCycle(MonthlyCycleBase):
 
 
 # ==========================================
-# 3. Extra_Expenses
-# ==========================================
-class ExtraExpenseBase(BaseModel):
-    cycle_id: UUID
-    buyer_id: UUID
-    item_name: str
-    amount: int
-
-class ExtraExpenseCreate(BaseModel):
-    buyer_id: UUID
-    item_name: str
-    amount: int
-
-class ExtraExpense(ExtraExpenseBase):
-    id: UUID
-
-    class Config:
-        from_attributes = True
-
-
-# ==========================================
-# 4. Monthly_Overrides
+# 3. Monthly_Overrides
 # ==========================================
 class MonthlyOverrideBase(BaseModel):
     cycle_id: UUID
@@ -99,6 +78,4 @@ class MemberBillingDetail(BaseModel):
     service_fee: int = 133000
     parking_fee: int
     utility_share: int
-    extra_expense_share: int
-    offset_amount: int
     total_due: int

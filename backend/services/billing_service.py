@@ -25,9 +25,7 @@ def calculate_member_bill(month: int, year: int) -> List[Dict[str, Any]]:
           Tiền phòng cố định (1)
         + 133.000đ phí dịch vụ (2)
         + Tiền gửi xe của tháng đó (3) - mặc định 173.000đ hoặc override
-        + [(Tổng điện + Tổng nước) / 6] (4)
-        + (Tổng chi phí phát sinh cả nhà / 6) (5)
-        - Tổng số tiền người đó đã ứng ra mua đồ phát sinh (6)
+        + phần Điện & Nước chia cho số thành viên đang ở (4)
     """
     # 0. Fetch cấu hình chung (Phí dịch vụ)
     service_fee = DEFAULT_SERVICE_FEE
@@ -112,33 +110,7 @@ def calculate_member_bill(month: int, year: int) -> List[Dict[str, Any]]:
     utility_total = electricity_amount + water_amount
     utility_share_per_person = round(utility_total / active_members_count)
 
-    # 3. Fetch chi phí phát sinh (Extra_Expenses) cho tháng này
-    extra_expenses = []
-    if cycle_id:
-        try:
-            expenses_resp = (
-                supabase.table("extra_expenses")
-                .select("*")
-                .eq("cycle_id", cycle_id)
-                .execute()
-            )
-            if expenses_resp and expenses_resp.data:
-                extra_expenses = expenses_resp.data
-        except Exception as e:
-            print(f"Warning: Fetching extra_expenses failed ({e}).")
-
-    total_extra_expenses = sum(item.get("amount", 0) for item in extra_expenses)
-    extra_share_per_person = round(total_extra_expenses / active_members_count)
-
-    # Tính số tiền từng cá nhân đã ứng ra mua đồ trong tháng đó (Offset)
-    member_offsets: Dict[str, int] = {}
-    for exp in extra_expenses:
-        buyer_id = str(exp.get("buyer_id"))
-        member_offsets[buyer_id] = member_offsets.get(buyer_id, 0) + exp.get("amount", 0)
-
-    # (Fetch monthly_overrides đã được dời lên trên để đếm active_members_count)
-
-    # 5. Tính toán tiền chốt sổ cho từng người
+    # 3. Tính toán tiền chốt sổ cho từng người
     billing_summary = []
     for member in members:
         m_id = str(member["id"])
@@ -153,22 +125,15 @@ def calculate_member_bill(month: int, year: int) -> List[Dict[str, Any]]:
         # Trạng thái đã thu tiền (is_paid)
         is_paid = ov_member.get("is_paid", False)
 
-        # Số tiền người đó đã ứng mua đồ phát sinh trong tháng
-        offset_amount = member_offsets.get(m_id, 0)
-
         # Kiểm tra miễn chia tiền
         is_excluded = ov_member.get("is_excluded", False)
         
         member_utility_share = 0 if is_excluded else utility_share_per_person
-        member_extra_share = 0 if is_excluded else extra_share_per_person
-
-        # CÔNG THỨC CHỐT SỔ MỚI: Không trừ tiền ứng (theo yêu cầu của user)
         total_due = (
             fixed_rent
             + service_fee
             + parking_fee
             + member_utility_share
-            + member_extra_share
         )
 
         billing_summary.append({
@@ -178,8 +143,6 @@ def calculate_member_bill(month: int, year: int) -> List[Dict[str, Any]]:
             "service_fee": service_fee,
             "parking_fee": parking_fee,
             "utility_share": member_utility_share,
-            "extra_expense_share": member_extra_share,
-            "offset_amount": offset_amount, # Vẫn trả về phòng hờ nhưng không trừ vào total_due
             "total_due": total_due,
             "is_paid": is_paid,
             "is_excluded": is_excluded,

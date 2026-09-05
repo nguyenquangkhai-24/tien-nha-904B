@@ -209,7 +209,7 @@ def update_payment_status(payload: UpdateStatusRequest):
 def get_yearly_stats(year: int):
     """
     7. GET /api/yearly/:year
-    Lấy thống kê điện, nước và phát sinh của toàn bộ 12 tháng trong năm.
+    Lấy thống kê điện và nước của toàn bộ 12 tháng trong năm.
     """
     try:
         # Fetch tất cả cycles trong năm
@@ -220,24 +220,6 @@ def get_yearly_stats(year: int):
         if not cycles:
             return []
 
-        cycle_ids = [c["id"] for c in cycles]
-        
-        # Fetch tất cả expenses thuộc các cycles này
-        # Vì supabase-py chưa hỗ trợ tốt lệnh .in_(), ta fetch toàn bộ hoặc chia batch (ở đây ít nên fetch hết)
-        # Cách đơn giản: fetch những expense nào có cycle_id nằm trong list.
-        expenses = []
-        if cycle_ids:
-            exp_res = supabase.table("extra_expenses").select("*").in_("cycle_id", cycle_ids).execute()
-            if exp_res and exp_res.data:
-                expenses = exp_res.data
-
-        # Nhóm expenses theo cycle_id
-        expenses_by_cycle = {}
-        for exp in expenses:
-            c_id = exp.get("cycle_id")
-            amount = exp.get("amount", 0)
-            expenses_by_cycle[c_id] = expenses_by_cycle.get(c_id, 0) + amount
-
         # Build mảng kết quả 12 tháng (1-12)
         # Để đảm bảo đủ 12 tháng (kể cả chưa có), ta có thể sinh ra array 1-12
         stats = []
@@ -246,23 +228,19 @@ def get_yearly_stats(year: int):
         for m in range(1, 13):
             if m in cycle_map:
                 c = cycle_map[m]
-                c_id = c["id"]
                 elec = c.get("electricity_amount", 0)
                 water = c.get("water_amount", 0)
-                extra = expenses_by_cycle.get(c_id, 0)
                 stats.append({
                     "month": m,
                     "electricity": elec,
                     "water": water,
-                    "extra": extra,
-                    "total": elec + water + extra
+                    "total": elec + water
                 })
             else:
                 stats.append({
                     "month": m,
                     "electricity": 0,
                     "water": 0,
-                    "extra": 0,
                     "total": 0
                 })
 
