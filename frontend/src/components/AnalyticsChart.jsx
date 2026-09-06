@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { getYearlyStats } from '../services/api';
 import { BarChart3, ChevronLeft, ChevronRight, Zap, Droplet, Loader2 } from 'lucide-react';
 
@@ -7,11 +7,7 @@ export default function AnalyticsChart({ year, onYearChange }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    fetchStats();
-  }, [year]);
-
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -23,7 +19,13 @@ export default function AnalyticsChart({ year, onYearChange }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [year]);
+
+  useEffect(() => {
+    // Statistics require the in-memory admin token, so they are loaded client-side.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void fetchStats();
+  }, [fetchStats]);
 
   const formatVND = (amount) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);

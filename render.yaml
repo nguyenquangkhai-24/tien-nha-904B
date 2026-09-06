@@ -5,10 +5,16 @@ services:
     region: singapore
     plan: free
     buildCommand: pip install -r backend/requirements.txt
-    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port 10000
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    autoDeployTrigger: checksPass
     envVars:
       - key: PYTHON_VERSION
-        value: 3.10.12
+        value: 3.12.14
+      - key: ENVIRONMENT
+        value: production
+      - key: ALLOWED_ORIGINS
+        value: https://tien-nha-904-b.vercel.app
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_KEY

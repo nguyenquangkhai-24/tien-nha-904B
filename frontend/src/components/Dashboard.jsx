@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { getMonthlyBilling } from '../services/api';
 import { updatePaymentStatus } from '../services/api';
 import { 
@@ -8,7 +8,6 @@ import {
   Copy, 
   Check, 
   RefreshCw, 
-  AlertCircle,
   Sparkles,
   WifiOff,
   ReceiptText,
@@ -32,7 +31,7 @@ export default function Dashboard({ month, year, onPeriodChange, refreshKey, onU
   const [showSystemConfig, setShowSystemConfig] = useState(false);
   const [togglingStatusId, setTogglingStatusId] = useState(null);
 
-  const fetchBillingData = async () => {
+  const fetchBillingData = useCallback(async () => {
     setLoading(true);
     setError(null);
 
@@ -47,11 +46,13 @@ export default function Dashboard({ month, year, onPeriodChange, refreshKey, onU
     } finally {
       setLoading(false);
     }
-  };
+  }, [month, year]);
 
   useEffect(() => {
-    fetchBillingData();
-  }, [month, year, refreshKey]);
+    // Billing is an authenticated client-only resource; refresh when its key changes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void fetchBillingData();
+  }, [fetchBillingData, refreshKey]);
 
   const handleTogglePayment = async (memberId, currentStatus) => {
     setTogglingStatusId(memberId);

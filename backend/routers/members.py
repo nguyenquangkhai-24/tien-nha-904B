@@ -98,7 +98,7 @@ def update_member(member_id: UUID, payload: MemberUpdatePayload):
 @router.delete("/{member_id}")
 def delete_member(member_id: UUID, expected_version: int):
     if expected_version < 1:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Version không hợp lệ.")
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Version không hợp lệ.")
     try:
         result = (
             supabase.table("members")

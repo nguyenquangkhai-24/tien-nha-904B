@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { getMembers, addMember, updateMember, deleteMember, getSettings, updateServiceFee, updateAdminPin } from '../services/api';
 import { X, Users, Settings as SettingsIcon, Save, Plus, Trash2, Edit2, Loader2, DollarSign, KeyRound } from 'lucide-react';
 import useModalDialog from '../hooks/useModalDialog';
@@ -21,11 +21,7 @@ export default function SystemConfigModal({ onClose, onUpdated }) {
   const [adminPinVersion, setAdminPinVersion] = useState(1);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
@@ -44,7 +40,13 @@ export default function SystemConfigModal({ onClose, onUpdated }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    // Configuration is protected by the tab-local admin token and cannot be prefetched.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void fetchData();
+  }, [fetchData]);
 
   const handleSaveServiceFee = async () => {
     try {

@@ -15,6 +15,8 @@ export default function Home() {
 
   useEffect(() => {
     const now = new Date();
+    // The billing period must be derived in the browser timezone after hydration.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPeriod({ month: now.getMonth() + 1, year: now.getFullYear() });
 
     const handleAuthError = () => {

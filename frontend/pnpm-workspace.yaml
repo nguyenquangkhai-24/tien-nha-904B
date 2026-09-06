@@ -1,0 +1,7 @@
+packages:
+  - "."
+
+# unrs-resolver is the native resolver used by eslint-import-resolver-next.
+# Its postinstall step only selects the matching prebuilt binary.
+allowBuilds:
+  unrs-resolver: true

@@ -90,7 +90,7 @@ def _secure_response(response, request_id: str):
 async def validation_error_handler(request: Request, exc: RequestValidationError):
     request_id = getattr(request.state, "request_id", str(uuid.uuid4()))
     return JSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         content={"detail": exc.errors(), "request_id": request_id},
     )
 
