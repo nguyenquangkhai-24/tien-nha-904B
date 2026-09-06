@@ -60,6 +60,31 @@ def _load_pin_rows() -> dict[str, str]:
     return {str(row["key"]): str(row["value"]) for row in (result.data or [])}
 
 
+def ensure_admin_pin_is_hashed() -> None:
+    """Migrate the legacy PIN in place without exposing or changing its value."""
+    rows = _load_pin_rows()
+    if rows.get("admin_pin_hash"):
+        if rows.get("admin_pin"):
+            try:
+                supabase.table("global_settings").delete().eq("key", "admin_pin").execute()
+            except Exception as exc:
+                raise AuthBackendUnavailable("Không thể xóa PIN plaintext cũ.") from exc
+        return
+
+    legacy_pin = rows.get("admin_pin") or get_bootstrap_pin()
+    if not legacy_pin or not legacy_pin.isdigit() or not 6 <= len(legacy_pin) <= 12:
+        raise AuthBackendUnavailable("PIN quản trị chưa được cấu hình hợp lệ.")
+
+    try:
+        supabase.table("global_settings").upsert(
+            {"key": "admin_pin_hash", "value": hash_pin(legacy_pin)},
+            on_conflict="key",
+        ).execute()
+        supabase.table("global_settings").delete().eq("key", "admin_pin").execute()
+    except Exception as exc:
+        raise AuthBackendUnavailable("Không thể nâng cấp bảo mật PIN.") from exc
+
+
 def verify_admin_pin(pin: str, *, upgrade_legacy: bool = False) -> bool:
     rows = _load_pin_rows()
     encoded = rows.get("admin_pin_hash")

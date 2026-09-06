@@ -1,6 +1,6 @@
 import os
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 os.environ.setdefault("SUPABASE_URL", "https://example.supabase.co")
 os.environ.setdefault("SUPABASE_KEY", "test-key")
@@ -11,6 +11,7 @@ from backend.main import app
 from backend.security import (
     AuthBackendUnavailable,
     PinRateLimiter,
+    ensure_admin_pin_is_hashed,
     hash_pin,
     issue_admin_session,
     verify_admin_session,
@@ -27,6 +28,25 @@ class SecurityTests(unittest.TestCase):
         self.assertNotIn("987654", encoded)
         self.assertTrue(verify_pin_hash("987654", encoded))
         self.assertFalse(verify_pin_hash("987655", encoded))
+
+    def test_legacy_pin_is_hashed_without_changing_it(self):
+        database = MagicMock()
+        with (
+            patch("backend.security._load_pin_rows", return_value={"admin_pin": "987654"}),
+            patch("backend.security.supabase", database),
+        ):
+            ensure_admin_pin_is_hashed()
+
+        payload = database.table.return_value.upsert.call_args.args[0]
+        self.assertEqual(payload["key"], "admin_pin_hash")
+        self.assertNotIn("987654", payload["value"])
+        self.assertTrue(verify_pin_hash("987654", payload["value"]))
+        database.table.return_value.delete.return_value.eq.assert_called_with("key", "admin_pin")
+
+    def test_invalid_legacy_pin_blocks_startup(self):
+        with patch("backend.security._load_pin_rows", return_value={"admin_pin": "1234"}):
+            with self.assertRaises(AuthBackendUnavailable):
+                ensure_admin_pin_is_hashed()
 
     def test_data_api_requires_pin(self):
         response = self.client.get("/api/members")

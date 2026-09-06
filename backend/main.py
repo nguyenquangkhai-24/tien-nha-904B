@@ -1,5 +1,6 @@
 import logging
 import uuid
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
@@ -8,10 +9,17 @@ from fastapi.responses import JSONResponse
 
 from backend.config import IS_PRODUCTION, get_allowed_origins
 from backend.routers import members, monthly, settings
-from backend.security import AuthBackendUnavailable, verify_admin_session
+from backend.security import AuthBackendUnavailable, ensure_admin_pin_is_hashed, verify_admin_session
 
 
 logger = logging.getLogger("tien_nha_api")
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    ensure_admin_pin_is_hashed()
+    yield
+
 
 app = FastAPI(
     title="Tiền Nhà 904B API",
@@ -20,6 +28,7 @@ app = FastAPI(
     docs_url=None if IS_PRODUCTION else "/docs",
     redoc_url=None if IS_PRODUCTION else "/redoc",
     openapi_url=None if IS_PRODUCTION else "/openapi.json",
+    lifespan=lifespan,
 )
 
 app.add_middleware(

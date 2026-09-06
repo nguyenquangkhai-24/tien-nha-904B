@@ -4,7 +4,7 @@ Base path: `/api`. Trừ `/api/health` và `/api/auth/login`, mọi endpoint yê
 
 ## Authentication
 
-- `POST /api/auth/login` — kiểm tra PIN, rate-limit theo IP; PIN plaintext cũ được nâng cấp sang PBKDF2 khi đăng nhập thành công; trả token ký số ngắn hạn.
+- `POST /api/auth/login` — kiểm tra PIN, rate-limit theo IP và trả token ký số ngắn hạn; PIN plaintext cũ đã được nâng cấp sang PBKDF2 lúc backend khởi động.
 - Đăng xuất xóa token phía client; server không tạo cookie.
 - `PUT /api/settings/admin-pin` — đổi PIN với `expected_version`; mọi token cũ tự mất hiệu lực.
 

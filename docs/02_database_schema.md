@@ -39,7 +39,7 @@ Schema production dùng PostgreSQL/Supabase. Mọi bảng trong `public` phải 
 
 ### `global_settings`
 
-- `key TEXT PRIMARY KEY`, nhận `service_fee`, `admin_pin_hash`; `admin_pin` chỉ được giữ tạm để nâng cấp một lần.
+- `key TEXT PRIMARY KEY`, nhận `service_fee`, `admin_pin_hash`; nếu còn `admin_pin` legacy thì backend hash và xóa ngay khi khởi động.
 - `value TEXT NOT NULL`
 - `version INTEGER NOT NULL DEFAULT 1`
 - `updated_at`
